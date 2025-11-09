@@ -31,6 +31,245 @@ Sistema de gestión empresarial para control de inventarios, productos, proveedo
 - 🎨 Tema personalizado y UI moderna
 - 📱 Multiplataforma (iOS, Android)
 
+## Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    USUARIOS ||--o{ MOVIMIENTOS : registra
+    USUARIOS ||--o{ AUDITORIAS : realiza
+    USUARIOS }o--|| TIENDAS : pertenece
+    USUARIOS }o--|| ROLES : tiene
+    
+    TIENDAS ||--o{ INVENTARIOS : tiene
+    TIENDAS ||--o{ MOVIMIENTOS : origina
+    TIENDAS ||--o{ MOVIMIENTOS : destino
+    
+    PRODUCTOS ||--o{ INVENTARIOS : "se almacena en"
+    PRODUCTOS }o--|| CATEGORIAS : pertenece
+    PRODUCTOS }o--|| UNIDADES_MEDIDA : usa
+    PRODUCTOS ||--o{ MOVIMIENTOS : "incluido en"
+    PRODUCTOS }o--o| PROVEEDORES : "suministrado por"
+    PRODUCTOS ||--o{ LOTES : "agrupado en"
+    
+    ALMACENES ||--o{ INVENTARIOS : contiene
+    ALMACENES }o--|| TIENDAS : "ubicado en"
+    
+    INVENTARIOS ||--o{ MOVIMIENTOS : afecta
+    INVENTARIOS }o--o| LOTES : "pertenece a"
+    
+    PROVEEDORES ||--o{ PRODUCTOS : suministra
+    PROVEEDORES ||--o{ MOVIMIENTOS : "origina compra"
+    
+    USUARIOS {
+        uuid id PK
+        string email UK
+        string nombre_completo
+        string telefono
+        uuid tienda_id FK
+        uuid rol_id FK
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+        uuid sync_id "ID local para sync"
+        timestamp last_sync
+    }
+    
+    ROLES {
+        uuid id PK
+        string nombre UK
+        string descripcion
+        json permisos
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    TIENDAS {
+        uuid id PK
+        string nombre
+        string codigo UK
+        string direccion
+        string ciudad
+        string departamento
+        string telefono
+        string horario_atencion
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    ALMACENES {
+        uuid id PK
+        string nombre
+        string codigo UK
+        uuid tienda_id FK
+        string ubicacion
+        string tipo "Principal, Obra, Transito"
+        decimal capacidad_m3 "Capacidad en metros cúbicos"
+        decimal area_m2 "Área en metros cuadrados"
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    CATEGORIAS {
+        uuid id PK
+        string nombre
+        string codigo UK
+        string descripcion
+        uuid categoria_padre_id FK "Para subcategorías"
+        boolean requiere_lote "Cemento, pintura requieren lote"
+        boolean requiere_certificacion "Para materiales certificados"
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    UNIDADES_MEDIDA {
+        uuid id PK
+        string nombre UK "Bolsa, Metro, Kilo, Litro, Plancha, Pieza"
+        string abreviatura "BLS, M, KG, LT, PLCH, PZA"
+        string tipo "Peso, Volumen, Longitud, Unidad, Area"
+        decimal factor_conversion "Para convertir entre unidades"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    PROVEEDORES {
+        uuid id PK
+        string razon_social
+        string nit UK
+        string nombre_contacto
+        string telefono
+        string email
+        string direccion
+        string ciudad
+        string tipo_material "Cemento, Fierro, Madera, etc"
+        int dias_credito
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    PRODUCTOS {
+        uuid id PK
+        string nombre "Cemento Fancesa IP-30, Fierro 1/2 pulgada"
+        string codigo UK "SKU o código de barras"
+        string descripcion
+        uuid categoria_id FK
+        uuid unidad_medida_id FK
+        uuid proveedor_principal_id FK
+        decimal precio_compra
+        decimal precio_venta
+        decimal peso_unitario_kg "Para cálculos de transporte"
+        decimal volumen_unitario_m3
+        int stock_minimo
+        int stock_maximo
+        string marca "Fancesa, Coboce, Viacha"
+        string grado_calidad "Para fierro: A615, para cemento: IP-30, IP-40"
+        string norma_tecnica "NB, ASTM, ISO"
+        boolean requiere_almacen_cubierto
+        boolean material_peligroso "Cal, químicos"
+        string imagen_url
+        string ficha_tecnica_url
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    LOTES {
+        uuid id PK
+        string numero_lote UK
+        uuid producto_id FK
+        timestamp fecha_fabricacion
+        timestamp fecha_vencimiento "Para cemento, pegamentos"
+        uuid proveedor_id FK
+        string numero_factura
+        int cantidad_inicial
+        int cantidad_actual
+        string certificado_calidad_url
+        string observaciones
+        timestamp created_at
+        timestamp updated_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    INVENTARIOS {
+        uuid id PK
+        uuid producto_id FK
+        uuid almacen_id FK
+        uuid tienda_id FK
+        uuid lote_id FK "Opcional, para control de lotes"
+        int cantidad_actual
+        int cantidad_reservada "Para pedidos pendientes"
+        int cantidad_disponible "Calculado: actual - reservada"
+        decimal valor_total "cantidad * precio_compra"
+        string ubicacion_fisica "Pasillo, Estante, Zona"
+        timestamp ultima_actualizacion
+        timestamp created_at
+        timestamp updated_at
+        uuid sync_id
+        timestamp last_sync
+    }
+    
+    MOVIMIENTOS {
+        uuid id PK
+        string numero_movimiento UK
+        uuid producto_id FK
+        uuid inventario_id FK
+        uuid lote_id FK
+        uuid tienda_origen_id FK
+        uuid tienda_destino_id FK
+        uuid proveedor_id FK "Para compras"
+        string tipo "COMPRA, VENTA, TRANSFERENCIA, AJUSTE, DEVOLUCION, MERMA"
+        string motivo
+        int cantidad
+        decimal costo_unitario
+        decimal costo_total
+        decimal peso_total_kg "Para logística"
+        uuid usuario_id FK
+        string estado "PENDIENTE, EN_TRANSITO, COMPLETADO, CANCELADO"
+        timestamp fecha_movimiento
+        string numero_factura
+        string numero_guia_remision
+        string vehiculo_placa "Para transferencias"
+        string conductor
+        string observaciones
+        timestamp created_at
+        timestamp updated_at
+        uuid sync_id
+        timestamp last_sync
+        boolean sincronizado
+    }
+    
+    AUDITORIAS {
+        uuid id PK
+        uuid usuario_id FK
+        string tabla_afectada
+        string accion "INSERT, UPDATE, DELETE"
+        json datos_anteriores
+        json datos_nuevos
+        string ip_address
+        string dispositivo
+        timestamp created_at
+    }
+```
+
 ## 📦 Requisitos Previos
 
 - Flutter SDK (>=3.0.0)
