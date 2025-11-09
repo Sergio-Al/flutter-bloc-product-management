@@ -291,6 +291,65 @@ flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
+## Archivos SQL para Supabase
+
+### 1. Schema Principal: `supabase_schema_complete.sql`
+Contiene el esquema completo de la base de datos:
+- 12 tablas con relaciones y constraints
+- Campos de sincronización (sync_id, last_sync, sincronizado)
+- Triggers para auto-actualización de timestamps
+- Índices para optimización de consultas
+- Vistas para consultas complejas (vw_inventario_completo, vw_movimientos_completos, vw_productos_stock_bajo)
+- Funciones RPC (get_dashboard_stats)
+- Datos semilla (roles, unidades de medida, categorías)
+
+**Deployment:** Copiar y pegar el contenido completo en el SQL Editor de Supabase.
+
+### 2. Políticas de Seguridad: `supabase_rls_policies.sql`
+Contiene las políticas de seguridad a nivel de fila (RLS) que protegen los datos:
+- Habilita RLS en todas las tablas
+- Funciones helper (get_user_tienda_id, is_admin, is_manager, user_has_role)
+- Políticas por tabla con permisos basados en roles
+- Restricciones por tienda para acceso multi-tenant
+- Control de operaciones CRUD según permisos de usuario
+
+**Deployment:** Ejecutar DESPUÉS de `supabase_schema_complete.sql`
+
+> **Nota:** El contenido completo de las RLS policies se encuentra en el archivo `supabase_rls_policies.sql` del proyecto. A continuación se muestra un resumen de las políticas principales:
+
+```sql
+-- ============================================
+-- RESUMEN DE POLÍTICAS RLS
+-- (Ver supabase_rls_policies.sql para el código completo)
+-- ============================================
+
+-- 1. FUNCIONES HELPER
+--    - get_user_tienda_id(): Obtiene la tienda del usuario autenticado
+--    - user_has_role(role_name): Verifica si el usuario tiene un rol específico
+--    - is_admin(): Verifica si el usuario es administrador
+--    - is_manager(): Verifica si el usuario es gerente o admin
+
+-- 2. POLÍTICAS POR TABLA
+--    roles: Lectura para todos, modificación solo admin
+--    tiendas: Lectura para todos, gestión solo admin
+--    usuarios: Lectura propia + tienda, creación solo admin, actualización propia
+--    almacenes: Lectura y gestión por tienda, solo gerentes
+--    categorias: Lectura para todos, gestión solo admin
+--    unidades_medida: Lectura para todos, gestión solo admin
+--    proveedores: Lectura para todos, gestión solo gerentes
+--    productos: Lectura para todos, gestión solo gerentes
+--    lotes: Lectura para todos, gestión solo gerentes
+--    inventarios: Lectura y gestión por tienda
+--    movimientos: Lectura y creación por tienda, gestión solo admin
+--    auditorias: Solo admin puede leer, sistema puede insertar
+
+-- 3. VERIFICACIÓN
+SELECT schemaname, tablename, policyname, cmd
+FROM pg_policies 
+WHERE schemaname = 'public'
+ORDER BY tablename;
+```
+
 ## ⚙️ Configuración de Supabase
 
 ### Paso 1: Crear Proyecto en Supabase
@@ -303,9 +362,10 @@ flutter pub run build_runner build --delete-conflicting-outputs
 ### Paso 2: Ejecutar el Schema SQL
 
 1. Ve a **SQL Editor** en Supabase Dashboard
-2. Copia y pega el contenido de `supabase_config.sql`
-3. Ejecuta el script
-4. Luego ejecuta `supabase_rls_policies.sql`
+2. Copia y pega el contenido completo de `supabase_schema_complete.sql`
+3. Ejecuta el script (puede tardar unos segundos)
+4. Luego copia y pega el contenido de `supabase_rls_policies.sql`
+5. Ejecuta las políticas RLS
 
 ### Paso 3: Configurar Autenticación
 
