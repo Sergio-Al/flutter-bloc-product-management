@@ -247,11 +247,3 @@ WHERE schemaname = 'public';
 # No se sincronizan cambios en realtime
 # Solución: Habilitar replicación en Database > Replication
 
-# ============================================
-# NEXT STEPS
-# ============================================
-# 1. Implementar Sync Manager para offline-first
-# 2. Configurar los Repositories
-# 3. Implementar los BLoCs con HydratedBloc
-# 4. Crear las pantallas de UI
-# 5. Implementar estrategia de manejo de conflictos
