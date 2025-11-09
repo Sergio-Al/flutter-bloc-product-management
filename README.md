@@ -212,51 +212,286 @@ flutter build ios --dart-define-from-file=.env
 
 ```
 lib/
-├── main.dart
-├── core/                          # Núcleo de la aplicación
-│   ├── config/                    # Configuraciones
+├── core/
+│   ├── config/
 │   │   ├── app_config.dart
 │   │   ├── env_config.dart
 │   │   └── supabase_config.dart
-│   ├── constants/                 # Constantes
+│   ├── constants/
 │   │   ├── app_constants.dart
 │   │   ├── database_constants.dart
 │   │   └── sync_constants.dart
-│   ├── errors/                    # Manejo de errores
+│   ├── errors/
 │   │   ├── exceptions.dart
 │   │   └── failures.dart
-│   ├── network/                   # Red y conectividad
-│   │   ├── connectivity_observer.dart
-│   │   └── network_info.dart
-│   ├── sync/                      # Sistema de sincronización
-│   │   ├── conflict_resolver.dart
+│   ├── network/
+│   │   ├── network_info.dart
+│   │   └── connectivity_observer.dart
+│   ├── sync/
 │   │   ├── sync_manager.dart
 │   │   ├── sync_queue.dart
+│   │   ├── conflict_resolver.dart
 │   │   └── sync_status.dart
-│   ├── theme/                     # Temas y estilos
-│   │   ├── app_colors.dart
-│   │   ├── app_text_styles.dart
-│   │   └── app_theme.dart
-│   └── utils/                     # Utilidades
-│       ├── date_utils.dart
-│       ├── logger.dart
-│       ├── uuid_generator.dart
-│       └── validators.dart
-├── data/                          # Capa de datos
+│   ├── utils/
+│   │   ├── date_utils.dart
+│   │   ├── uuid_generator.dart
+│   │   ├── validators.dart
+│   │   └── logger.dart
+│   └── theme/
+│       ├── app_theme.dart
+│       ├── app_colors.dart
+│       └── app_text_styles.dart
+│
+├── data/
 │   ├── datasources/
-│   │   ├── local/                 # SQLite con Drift
-│   │   └── remote/                # Supabase API
-│   ├── models/                    # Modelos de datos
-│   └── repositories/              # Implementación de repositorios
-├── domain/                        # Capa de dominio
-│   ├── entities/                  # Entidades de negocio
-│   ├── repositories/              # Interfaces de repositorios
-│   └── usecases/                  # Casos de uso
-└── presentation/                  # Capa de presentación
-    ├── bloc/                      # Lógica de estado (BLoC)
-    ├── pages/                     # Pantallas
-    ├── widgets/                   # Widgets reutilizables
-    └── routes/                    # Navegación
+│   │   ├── local/
+│   │   │   ├── database/
+│   │   │   │   ├── app_database.dart              # Drift database
+│   │   │   │   ├── app_database.g.dart            # Generated
+│   │   │   │   ├── daos/
+│   │   │   │   │   ├── usuario_dao.dart
+│   │   │   │   │   ├── producto_dao.dart
+│   │   │   │   │   ├── inventario_dao.dart
+│   │   │   │   │   ├── movimiento_dao.dart
+│   │   │   │   │   ├── tienda_dao.dart
+│   │   │   │   │   ├── almacen_dao.dart
+│   │   │   │   │   ├── proveedor_dao.dart
+│   │   │   │   │   ├── lote_dao.dart
+│   │   │   │   │   └── categoria_dao.dart
+│   │   │   │   └── tables/
+│   │   │   │       ├── usuarios_table.dart
+│   │   │   │       ├── productos_table.dart
+│   │   │   │       ├── inventarios_table.dart
+│   │   │   │       ├── movimientos_table.dart
+│   │   │   │       ├── tiendas_table.dart
+│   │   │   │       ├── almacenes_table.dart
+│   │   │   │       ├── proveedores_table.dart
+│   │   │   │       ├── lotes_table.dart
+│   │   │   │       ├── categorias_table.dart
+│   │   │   │       ├── roles_table.dart
+│   │   │   │       ├── unidades_medida_table.dart
+│   │   │   │       └── auditorias_table.dart
+│   │   │   └── storage/
+│   │   │       └── hydrated_storage_service.dart
+│   │   └── remote/
+│   │       ├── supabase_datasource.dart
+│   │       ├── auth_remote_datasource.dart
+│   │       ├── producto_remote_datasource.dart
+│   │       ├── inventario_remote_datasource.dart
+│   │       ├── movimiento_remote_datasource.dart
+│   │       ├── tienda_remote_datasource.dart
+│   │       ├── almacen_remote_datasource.dart
+│   │       ├── proveedor_remote_datasource.dart
+│   │       └── sync_remote_datasource.dart
+│   │
+│   ├── models/
+│   │   ├── usuario_model.dart
+│   │   ├── producto_model.dart
+│   │   ├── inventario_model.dart
+│   │   ├── movimiento_model.dart
+│   │   ├── tienda_model.dart
+│   │   ├── almacen_model.dart
+│   │   ├── proveedor_model.dart
+│   │   ├── lote_model.dart
+│   │   ├── categoria_model.dart
+│   │   └── sync_status_model.dart
+│   │
+│   └── repositories/
+│       ├── auth_repository_impl.dart
+│       ├── usuario_repository_impl.dart
+│       ├── producto_repository_impl.dart
+│       ├── inventario_repository_impl.dart
+│       ├── movimiento_repository_impl.dart
+│       ├── tienda_repository_impl.dart
+│       ├── almacen_repository_impl.dart
+│       ├── proveedor_repository_impl.dart
+│       ├── lote_repository_impl.dart
+│       ├── categoria_repository_impl.dart
+│       └── sync_repository_impl.dart
+│
+├── domain/
+│   ├── entities/
+│   │   ├── usuario.dart
+│   │   ├── producto.dart
+│   │   ├── inventario.dart
+│   │   ├── movimiento.dart
+│   │   ├── tienda.dart
+│   │   ├── almacen.dart
+│   │   ├── proveedor.dart
+│   │   ├── lote.dart
+│   │   └── categoria.dart
+│   │
+│   ├── repositories/
+│   │   ├── auth_repository.dart
+│   │   ├── usuario_repository.dart
+│   │   ├── producto_repository.dart
+│   │   ├── inventario_repository.dart
+│   │   ├── movimiento_repository.dart
+│   │   ├── tienda_repository.dart
+│   │   ├── almacen_repository.dart
+│   │   ├── proveedor_repository.dart
+│   │   ├── lote_repository.dart
+│   │   ├── categoria_repository.dart
+│   │   └── sync_repository.dart
+│   │
+│   └── usecases/
+│       ├── auth/
+│       │   ├── login_usecase.dart
+│       │   ├── logout_usecase.dart
+│       │   ├── register_usecase.dart
+│       │   └── refresh_token_usecase.dart
+│       ├── productos/
+│       │   ├── get_productos_usecase.dart
+│       │   ├── create_producto_usecase.dart
+│       │   ├── update_producto_usecase.dart
+│       │   ├── delete_producto_usecase.dart
+│       │   └── search_productos_usecase.dart
+│       ├── inventarios/
+│       │   ├── get_inventario_usecase.dart
+│       │   ├── update_stock_usecase.dart
+│       │   └── check_stock_minimo_usecase.dart
+│       ├── movimientos/
+│       │   ├── create_movimiento_usecase.dart
+│       │   ├── get_movimientos_usecase.dart
+│       │   ├── cancel_movimiento_usecase.dart
+│       │   └── complete_movimiento_usecase.dart
+│       └── sync/
+│           ├── sync_all_usecase.dart
+│           ├── sync_entity_usecase.dart
+│           └── resolve_conflicts_usecase.dart
+│
+├── presentation/
+│   ├── blocs/
+│   │   ├── auth/
+│   │   │   ├── auth_bloc.dart
+│   │   │   ├── auth_event.dart
+│   │   │   └── auth_state.dart
+│   │   ├── productos/
+│   │   │   ├── producto_bloc.dart
+│   │   │   ├── producto_event.dart
+│   │   │   └── producto_state.dart
+│   │   ├── inventarios/
+│   │   │   ├── inventario_bloc.dart
+│   │   │   ├── inventario_event.dart
+│   │   │   └── inventario_state.dart
+│   │   ├── movimientos/
+│   │   │   ├── movimiento_bloc.dart
+│   │   │   ├── movimiento_event.dart
+│   │   │   └── movimiento_state.dart
+│   │   ├── tiendas/
+│   │   │   ├── tienda_bloc.dart
+│   │   │   ├── tienda_event.dart
+│   │   │   └── tienda_state.dart
+│   │   ├── almacenes/
+│   │   │   ├── almacen_bloc.dart
+│   │   │   ├── almacen_event.dart
+│   │   │   └── almacen_state.dart
+│   │   ├── proveedores/
+│   │   │   ├── proveedor_bloc.dart
+│   │   │   ├── proveedor_event.dart
+│   │   │   └── proveedor_state.dart
+│   │   └── sync/
+│   │       ├── sync_bloc.dart
+│   │       ├── sync_event.dart
+│   │       └── sync_state.dart
+│   │
+│   ├── pages/
+│   │   ├── auth/
+│   │   │   ├── login_page.dart
+│   │   │   └── register_page.dart
+│   │   ├── home/
+│   │   │   ├── home_page.dart
+│   │   │   └── dashboard_page.dart
+│   │   ├── productos/
+│   │   │   ├── productos_list_page.dart
+│   │   │   ├── producto_detail_page.dart
+│   │   │   └── producto_form_page.dart
+│   │   ├── inventarios/
+│   │   │   ├── inventarios_list_page.dart
+│   │   │   ├── inventario_detail_page.dart
+│   │   │   └── ajuste_inventario_page.dart
+│   │   ├── movimientos/
+│   │   │   ├── movimientos_list_page.dart
+│   │   │   ├── movimiento_detail_page.dart
+│   │   │   ├── crear_entrada_page.dart
+│   │   │   ├── crear_salida_page.dart
+│   │   │   └── crear_transferencia_page.dart
+│   │   ├── tiendas/
+│   │   │   ├── tiendas_list_page.dart
+│   │   │   ├── tienda_detail_page.dart
+│   │   │   └── tienda_form_page.dart
+│   │   ├── almacenes/
+│   │   │   ├── almacenes_list_page.dart
+│   │   │   ├── almacen_detail_page.dart
+│   │   │   └── almacen_form_page.dart
+│   │   ├── proveedores/
+│   │   │   ├── proveedores_list_page.dart
+│   │   │   ├── proveedor_detail_page.dart
+│   │   │   └── proveedor_form_page.dart
+│   │   ├── reportes/
+│   │   │   ├── reportes_page.dart
+│   │   │   ├── reporte_inventario_page.dart
+│   │   │   └── reporte_movimientos_page.dart
+│   │   └── settings/
+│   │       ├── settings_page.dart
+│   │       └── sync_settings_page.dart
+│   │
+│   └── widgets/
+│       ├── common/
+│       │   ├── custom_app_bar.dart
+│       │   ├── custom_button.dart
+│       │   ├── custom_text_field.dart
+│       │   ├── loading_indicator.dart
+│       │   ├── error_widget.dart
+│       │   ├── empty_state_widget.dart
+│       │   └── sync_indicator.dart
+│       ├── productos/
+│       │   ├── producto_card.dart
+│       │   ├── producto_list_item.dart
+│       │   └── producto_search_bar.dart
+│       ├── inventarios/
+│       │   ├── inventario_card.dart
+│       │   ├── stock_level_indicator.dart
+│       │   └── inventario_chart.dart
+│       └── movimientos/
+│           ├── movimiento_card.dart
+│           ├── movimiento_timeline.dart
+│           └── movimiento_status_badge.dart
+│
+├── routes/
+│   ├── app_router.dart
+│   └── route_names.dart
+│
+└── main.dart
+
+test/
+├── core/
+│   └── sync/
+│       └── sync_manager_test.dart
+├── data/
+│   ├── datasources/
+│   │   └── local/
+│   │       └── database/
+│   │           └── daos/
+│   │               ├── producto_dao_test.dart
+│   │               └── movimiento_dao_test.dart
+│   └── repositories/
+│       ├── producto_repository_impl_test.dart
+│       └── sync_repository_impl_test.dart
+├── domain/
+│   └── usecases/
+│       ├── productos/
+│       │   └── get_productos_usecase_test.dart
+│       └── sync/
+│           └── sync_all_usecase_test.dart
+└── presentation/
+    └── blocs/
+        ├── auth/
+        │   └── auth_bloc_test.dart
+        ├── productos/
+        │   └── producto_bloc_test.dart
+        └── sync/
+            └── sync_bloc_test.dart
 ```
 
 ## 🔄 Configuración de Realtime (Opcional)
