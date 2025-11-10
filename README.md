@@ -642,10 +642,15 @@ lib/
 │   │
 │   └── usecases/
 │       ├── auth/
+│       │   ├── auth_usecases.dart
+│       │   ├── get_current_user_usecase.dart
+│       │   ├── is_authenticated_usecase.dart
 │       │   ├── login_usecase.dart
 │       │   ├── logout_usecase.dart
-│       │   ├── register_usecase.dart
-│       │   └── refresh_token_usecase.dart
+│       │   ├── refresh_token_usecase.dart
+|       |   ├── register_usecase.dart
+|       |   ├── reset_password_usecase.dart
+│       │   └── update_password_usecase.dart
 │       ├── productos/
 │       │   ├── get_productos_usecase.dart
 │       │   ├── create_producto_usecase.dart

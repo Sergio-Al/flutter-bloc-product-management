@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,55 +14,50 @@ import '../network/network_info.dart';
 
 final getIt = GetIt.instance;
 
-/// Initialize all dependencies for the app
-/// This should be called in main() before runApp()
+/// Inicializa todas las dependencias del proyecto.
+/// Esto debe llamarse en main() antes de runApp()
 Future<void> setupDependencies() async {
   // ============================================================================
   // External Dependencies (Async initialization required)
   // ============================================================================
-  
+
   final sharedPreferences = await SharedPreferences.getInstance();
   getIt.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 
   // ============================================================================
   // Core - Network
   // ============================================================================
-  
+
   getIt.registerLazySingleton<Connectivity>(() => Connectivity());
-  
+
   getIt.registerLazySingleton<InternetConnectionChecker>(
     () => InternetConnectionChecker(),
   );
-  
+
   getIt.registerLazySingleton<ConnectivityObserver>(
     () => ConnectivityObserver(getIt()),
   );
-  
+
   getIt.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(
-      connectivity: getIt(),
-      connectionChecker: getIt(),
-    ),
+    () => NetworkInfoImpl(connectivity: getIt(), connectionChecker: getIt()),
   );
 
   // ============================================================================
   // Data sources - Auth
   // ============================================================================
-  
+
   getIt.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSource(),
   );
-  
+
   getIt.registerLazySingleton<AuthLocalDatasource>(
-    () => AuthLocalDatasourceImpl(
-      sharedPreferences: getIt(),
-    ),
+    () => AuthLocalDatasourceImpl(sharedPreferences: getIt()),
   );
 
   // ============================================================================
   // Repositories - Auth
   // ============================================================================
-  
+
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       remoteDatasource: getIt(),
@@ -71,12 +67,57 @@ Future<void> setupDependencies() async {
   );
 
   // ============================================================================
+  // Use Cases - Auth
+  // ============================================================================
+
+  getIt.registerLazySingleton<LoginUseCase>(
+    () => LoginUseCase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<LogoutUseCase>(
+    () => LogoutUseCase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<RefreshTokenUsecase>(
+    () => RefreshTokenUsecase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<RegisterUsecase>(
+    () => RegisterUsecase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<IsAuthenticatedUsecase>(
+    () => IsAuthenticatedUsecase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetCurrentUserUsecase>(
+    () => GetCurrentUserUsecase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdatePasswordUsecase>(
+    () => UpdatePasswordUsecase(getIt<AuthRepository>()),
+  );
+
+  getIt.registerLazySingleton<ResetPasswordUsecase>(
+    () => ResetPasswordUsecase(getIt<AuthRepository>()),
+  );
+
+  // ============================================================================
   // BLoCs - Auth
   // ============================================================================
-  
+
   // Use registerFactory for BLoCs so each BlocProvider gets a fresh instance
   getIt.registerFactory<AuthBloc>(
-    () => AuthBloc(authRepository: getIt()),
+    () => AuthBloc(
+      loginUseCase: getIt<LoginUseCase>(),
+      logoutUseCase: getIt<LogoutUseCase>(),
+      refreshTokenUsecase: getIt<RefreshTokenUsecase>(),
+      registerUsecase: getIt<RegisterUsecase>(),
+      isAuthenticatedUsecase: getIt<IsAuthenticatedUsecase>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+      updatePasswordUsecase: getIt<UpdatePasswordUsecase>(),
+      resetPasswordUsecase: getIt<ResetPasswordUsecase>(),
+    ),
   );
 }
 

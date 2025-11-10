@@ -85,7 +85,7 @@ class AuthRepositoryImpl implements AuthRepository {
         email: email,
         nombreCompleto: nombreCompleto,
         telefono: telefono,
-        rolId: '00000000-0000-0000-0000-000000000000', // Placeholder - update with actual default role
+        rolId: '00000000-0000-0000-0000-000000000004', // Placeholder - update with actual default role
         tiendaId: null,
         activo: true,
         createdAt: DateTime.now(),

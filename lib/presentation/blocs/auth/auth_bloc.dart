@@ -1,14 +1,31 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../domain/repositories/auth_repository.dart';
+import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 /// Authentication BLoC
 /// Manages authentication state and handles authentication events
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthRepository authRepository;
+  // final AuthRepository authRepository;
+  final LoginUseCase loginUseCase;
+  final LogoutUseCase logoutUseCase;
+  final RefreshTokenUsecase refreshTokenUsecase;
+  final RegisterUsecase registerUsecase;
+  final IsAuthenticatedUsecase isAuthenticatedUsecase;
+  final GetCurrentUserUsecase getCurrentUserUsecase;
+  final UpdatePasswordUsecase updatePasswordUsecase;
+  final ResetPasswordUsecase resetPasswordUsecase;
 
-  AuthBloc({required this.authRepository}) : super(const AuthInitial()) {
+  AuthBloc({
+    required this.loginUseCase,
+    required this.logoutUseCase,
+    required this.refreshTokenUsecase,
+    required this.registerUsecase,
+    required this.isAuthenticatedUsecase,
+    required this.getCurrentUserUsecase,
+    required this.updatePasswordUsecase,
+    required this.resetPasswordUsecase,
+  }) : super(const AuthInitial()) {
     // Register event handlers
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthRegisterRequested>(_onRegisterRequested);
@@ -26,7 +43,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.login(
+    final result = await loginUseCase(
       email: event.email,
       password: event.password,
     );
@@ -44,11 +61,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.register(
+    final result = await registerUsecase(
       email: event.email,
       password: event.password,
       nombreCompleto: event.nombreCompleto,
-      telefono: event.telefono,
+      telefono: event.telefono ?? '',
     );
 
     result.fold(
@@ -64,11 +81,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.logout();
+    final result = await logoutUseCase();
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(const AuthUnauthenticated(message: 'Logged out successfully')),
+      (_) =>
+          emit(const AuthUnauthenticated(message: 'Logged out successfully')),
     );
   }
 
@@ -79,7 +97,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final isAuthenticated = await authRepository.isAuthenticated();
+    final isAuthenticated = await isAuthenticatedUsecase();
 
     if (!isAuthenticated) {
       emit(const AuthUnauthenticated());
@@ -87,8 +105,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     // If authenticated, get current user
-    final result = await authRepository.getCurrentUser();
-
+    final result = await getCurrentUserUsecase();
     result.fold(
       (failure) => emit(const AuthUnauthenticated()),
       (user) => emit(AuthAuthenticated(user: user)),
@@ -101,7 +118,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     // Don't show loading for token refresh (background operation)
-    final result = await authRepository.refreshToken();
+    final result = await refreshTokenUsecase();
 
     result.fold(
       (failure) {
@@ -127,7 +144,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.resetPassword(event.email);
+    final result = await resetPasswordUsecase(email: event.email);
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
@@ -142,20 +159,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final result = await authRepository.updatePassword(
+    final result = await updatePasswordUsecase(
       currentPassword: event.currentPassword,
       newPassword: event.newPassword,
     );
 
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) {
-        emit(const AuthPasswordUpdated());
-        // Return to authenticated state
-        if (state is AuthAuthenticated) {
-          emit(state);
-        }
-      },
-    );
+    result.fold((failure) => emit(AuthError(message: failure.message)), (_) {
+      emit(const AuthPasswordUpdated());
+      // Return to authenticated state
+      if (state is AuthAuthenticated) {
+        emit(state);
+      }
+    });
   }
 }

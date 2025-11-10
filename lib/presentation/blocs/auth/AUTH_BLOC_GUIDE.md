@@ -2,7 +2,7 @@
 
 ## 📦 What Was Created
 
-Complete BLoC implementation for authentication following the BLoC pattern with clean separation of events, states, and business logic.
+Complete BLoC implementation for authentication following the BLoC pattern with clean separation of events, states, and business logic. Now uses use cases for better separation of concerns and testability.
 
 ## 📁 Files Created
 
@@ -29,10 +29,22 @@ All possible states of the authentication system:
 - `AuthPasswordUpdated`: Password updated successfully
 - `AuthTokenRefreshed`: Token refreshed successfully
 
-### 3. **auth_bloc.dart** - Authentication BLoC
+### 3. **auth_usecases.dart** - Authentication Use Cases
+Business logic encapsulated in use cases:
+
+- `LoginUseCase`: Handles login validation and calls repository
+- `RegisterUseCase`: Handles registration logic
+- `LogoutUseCase`: Handles logout
+- `RefreshTokenUsecase`: Handles token refresh
+- `IsAuthenticatedUsecase`: Checks authentication status
+- `GetCurrentUserUsecase`: Retrieves current user
+- `UpdatePasswordUsecase`: Updates password
+- `ResetPasswordUsecase`: Sends password reset
+
+### 4. **auth_bloc.dart** - Authentication BLoC
 Main business logic component that:
 - Listens to events
-- Calls repository methods
+- Calls use case methods
 - Emits appropriate states
 - Handles errors with Either pattern
 
@@ -51,7 +63,11 @@ Event (AuthLoginRequested)
     ↓ [BlocProvider]
 AuthBloc
     ↓ [calls]
+Use Case (e.g., LoginUseCase)
+    ↓ [calls]
 AuthRepository
+    ↓ [returns Either<Failure, Usuario>]
+Use Case
     ↓ [returns Either<Failure, Usuario>]
 AuthBloc
     ↓ [emits]
@@ -67,12 +83,11 @@ UI (Update Widget)
 ```dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-void main() {
+void main() async {
+  await setupDependencies(); // Initialize GetIt DI
   runApp(
     BlocProvider(
-      create: (context) => AuthBloc(
-        authRepository: getIt<AuthRepository>(),
-      )..add(const AuthCheckStatusRequested()),
+      create: (context) => getIt<AuthBloc>()..add(const AuthCheckStatusRequested()),
       child: MyApp(),
     ),
   );
@@ -339,11 +354,18 @@ import 'package:mockito/mockito.dart';
 
 void main() {
   late AuthBloc authBloc;
-  late MockAuthRepository mockAuthRepository;
+  late MockLoginUseCase mockLoginUseCase;
+  late MockLogoutUseCase mockLogoutUseCase;
+  // Mock other use cases as needed...
 
   setUp(() {
-    mockAuthRepository = MockAuthRepository();
-    authBloc = AuthBloc(authRepository: mockAuthRepository);
+    mockLoginUseCase = MockLoginUseCase();
+    mockLogoutUseCase = MockLogoutUseCase();
+    authBloc = AuthBloc(
+      loginUseCase: mockLoginUseCase,
+      logoutUseCase: mockLogoutUseCase,
+      // ... other use cases
+    );
   });
 
   tearDown(() {
@@ -364,9 +386,9 @@ void main() {
     blocTest<AuthBloc, AuthState>(
       'emits [AuthLoading, AuthAuthenticated] when login succeeds',
       build: () {
-        when(mockAuthRepository.login(
-          email: any,
-          password: any,
+        when(mockLoginUseCase(
+          email: anyNamed('email'),
+          password: anyNamed('password'),
         )).thenAnswer((_) async => Right(testUser));
         return authBloc;
       },
@@ -385,9 +407,9 @@ void main() {
     blocTest<AuthBloc, AuthState>(
       'emits [AuthLoading, AuthError] when login fails',
       build: () {
-        when(mockAuthRepository.login(
-          email: any,
-          password: any,
+        when(mockLoginUseCase(
+          email: anyNamed('email'),
+          password: anyNamed('password'),
         )).thenAnswer(
           (_) async => Left(AuthenticationFailure(message: 'Invalid credentials')),
         );
@@ -408,7 +430,7 @@ void main() {
     blocTest<AuthBloc, AuthState>(
       'emits [AuthLoading, AuthUnauthenticated] when logout succeeds',
       build: () {
-        when(mockAuthRepository.logout())
+        when(mockLogoutUseCase())
             .thenAnswer((_) async => const Right(unit));
         return authBloc;
       },
@@ -448,6 +470,11 @@ void main() {
 - Works with cached data
 - Handles network failures gracefully
 - Syncs when connection restored
+
+### 6. **Use Cases**
+- Business logic separated into testable use cases
+- Each use case handles one specific operation
+- Easier to mock and test independently
 
 ## 📊 State Transitions
 
@@ -490,9 +517,9 @@ Previous State or AuthUnauthenticated
    - Profile page
 
 2. **Add Dependency Injection**:
-   - Setup GetIt or Provider
-   - Register AuthRepository
-   - Register AuthBloc
+   - Setup GetIt (already done)
+   - Register use cases and BLoC (already done)
+   - Add for other modules (products, users, etc.)
 
 3. **Add Navigation**:
    - Protected routes
@@ -509,8 +536,9 @@ Previous State or AuthUnauthenticated
 
 - ✅ AuthEvent: 7 events defined
 - ✅ AuthState: 8 states defined
-- ✅ AuthBloc: All event handlers implemented
+- ✅ AuthUseCases: 8 use cases implemented
+- ✅ AuthBloc: All event handlers implemented with use cases
 - ✅ Compiles without errors
-- ✅ Uses AuthRepository interface
-- ✅ Follows BLoC pattern best practices
+- ✅ Uses use cases for business logic
+- ✅ Follows Clean Architecture principles
 - ✅ Ready for UI integration
