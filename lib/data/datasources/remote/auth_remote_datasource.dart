@@ -22,7 +22,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       );
 
       if (response.user == null) {
-        throw app_exceptions.AuthException('Usuario o contraseña incorrectos');
+        throw app_exceptions.AuthenticationException(
+          message: 'Usuario o contraseña incorrectos',
+        );
       }
 
       AppLogger.auth('✅ Sesión iniciada: ${response.user!.email}');
@@ -51,7 +53,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       );
 
       if (response.user == null) {
-        throw app_exceptions.AuthException('Error al registrar usuario');
+        throw app_exceptions.AuthenticationException(
+          message: 'Error al registrar usuario',
+        );
       }
 
       AppLogger.auth('✅ Usuario registrado: ${response.user!.email}');
@@ -81,7 +85,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       final response = await SupabaseDataSource.client.auth.refreshSession();
 
       if (response.session == null) {
-        throw app_exceptions.AuthException('No se pudo refrescar el token');
+        throw app_exceptions.AuthenticationException(
+          message: 'No se pudo refrescar el token',
+        );
       }
 
       AppLogger.auth('✅ Token refrescado');
@@ -114,7 +120,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       );
 
       if (response.user == null) {
-        throw app_exceptions.AuthException('Error al actualizar contraseña');
+        throw app_exceptions.AuthenticationException(
+          message: 'Error al actualizar contraseña',
+        );
       }
 
       AppLogger.auth('✅ Contraseña actualizada');
@@ -158,7 +166,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       final uid = userId ?? SupabaseDataSource.currentUserId;
 
       if (uid == null) {
-        throw app_exceptions.AuthException('No hay usuario autenticado');
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
+        );
       }
 
       AppLogger.auth('Obteniendo perfil de usuario: $uid');
@@ -188,7 +198,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       final uid = SupabaseDataSource.currentUserId;
 
       if (uid == null) {
-        throw app_exceptions.AuthException('No hay usuario autenticado');
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
+        );
       }
 
       AppLogger.auth('Actualizando perfil de usuario: $uid');
@@ -269,7 +281,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       final email = SupabaseDataSource.currentUserEmail;
 
       if (email == null) {
-        throw app_exceptions.AuthException('No hay usuario autenticado');
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
+        );
       }
 
       AppLogger.auth('Cambiando contraseña');
@@ -281,7 +295,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
           password: currentPassword,
         );
       } catch (e) {
-        throw app_exceptions.AuthException('Contraseña actual incorrecta');
+        throw app_exceptions.AuthenticationException(
+          message: 'Contraseña actual incorrecta',
+        );
       }
 
       // Actualizar con la nueva contraseña
@@ -330,7 +346,9 @@ class AuthRemoteDataSource extends SupabaseDataSource {
       );
 
       if (response.user == null) {
-        throw app_exceptions.AuthException('Error al actualizar email');
+        throw app_exceptions.AuthenticationException(
+          message: 'Error al actualizar email',
+        );
       }
 
       AppLogger.auth('✅ Email actualizado (requiere confirmación)');

@@ -24,32 +24,31 @@ abstract class SupabaseDataSource {
   /// Session actual
   static Session? get currentSession => client.auth.currentSession;
 
-  /// Maneja errores de Supabase y los convierte en excepciones personalizadas
+    /// Maneja errores de Supabase y los convierte en excepciones personalizadas
   static Never handleError(dynamic error, [StackTrace? stackTrace]) {
     AppLogger.error('Error en Supabase', error, stackTrace);
 
     if (error is PostgrestException) {
       throw app_exceptions.ServerException(
-        error.message,
+        message: error.message,
         code: error.code,
       );
     }
 
     if (error is AuthException) {
-      throw app_exceptions.AuthException(
-        error.message,
-        code: error.statusCode,
+      throw app_exceptions.AuthenticationException(
+        message: error.message,
       );
     }
 
     if (error is StorageException) {
       throw app_exceptions.ServerException(
-        error.message,
+        message: error.message,
         code: error.statusCode,
       );
     }
 
-    throw app_exceptions.ServerException(error.toString());
+    throw app_exceptions.ServerException(message: error.toString());
   }
 
   /// Ejecuta una query de manera segura con manejo de errores

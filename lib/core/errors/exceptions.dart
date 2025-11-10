@@ -1,58 +1,36 @@
-// Excepciones personalizadas de la aplicación
-
-/// Excepción base
-class AppException implements Exception {
+class ServerException implements Exception {
   final String message;
   final String? code;
-  final dynamic details;
 
-  AppException(this.message, {this.code, this.details});
+  ServerException({required this.message, this.code});
 
   @override
-  String toString() => 'AppException: $message${code != null ? ' (code: $code)' : ''}';
+  String toString() => 'ServerException: $message (code: $code)';
 }
 
-/// Excepción de servidor
-class ServerException extends AppException {
-  ServerException(super.message, {super.code, super.details});
+class CacheException implements Exception {
+  final String message;
+
+  CacheException({required this.message});
+
+  @override
+  String toString() => 'CacheException: $message';
 }
 
-/// Excepción de cache/base de datos local
-class CacheException extends AppException {
-  CacheException(super.message, {super.code, super.details});
+class NetworkException implements Exception {
+  final String message;
+
+  NetworkException({required this.message});
+
+  @override
+  String toString() => 'NetworkException: $message';
 }
 
-/// Excepción de red
-class NetworkException extends AppException {
-  NetworkException(super.message, {super.code, super.details});
-}
+class AuthenticationException implements Exception {
+  final String message;
 
-/// Excepción de autenticación
-class AuthException extends AppException {
-  AuthException(super.message, {super.code, super.details});
-}
+  AuthenticationException({required this.message});
 
-/// Excepción de validación
-class ValidationException extends AppException {
-  ValidationException(super.message, {super.code, super.details});
-}
-
-/// Excepción de sincronización
-class SyncException extends AppException {
-  SyncException(super.message, {super.code, super.details});
-}
-
-/// Excepción de conflicto de sincronización
-class ConflictException extends AppException {
-  ConflictException(super.message, {super.code, super.details});
-}
-
-/// Excepción de permisos
-class PermissionException extends AppException {
-  PermissionException(super.message, {super.code, super.details});
-}
-
-/// Excepción de recurso no encontrado
-class NotFoundException extends AppException {
-  NotFoundException(super.message, {super.code, super.details});
+  @override
+  String toString() => 'AuthenticationException: $message';
 }

@@ -1,5 +1,5 @@
-// Información y verificación de conectividad de red
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 abstract class NetworkInfo {
   Future<bool> get isConnected;
@@ -8,24 +8,20 @@ abstract class NetworkInfo {
 
 class NetworkInfoImpl implements NetworkInfo {
   final Connectivity connectivity;
+  final InternetConnectionChecker connectionChecker;
 
-  NetworkInfoImpl(this.connectivity);
+  NetworkInfoImpl({
+    required this.connectivity,
+    required this.connectionChecker,
+  });
 
   @override
-  Future<bool> get isConnected async {
-    final result = await connectivity.checkConnectivity();
-    return _isConnectionAvailable([result]);
-  }
+  Future<bool> get isConnected => connectionChecker.hasConnection;
 
   @override
   Stream<bool> get onConnectivityChanged {
-    return connectivity.onConnectivityChanged.map((result) => _isConnectionAvailable([result]));
-  }
-
-  bool _isConnectionAvailable(List<ConnectivityResult> results) {
-    return results.any((result) =>
-        result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet);
+    return connectivity.onConnectivityChanged.asyncMap(
+      (_) => connectionChecker.hasConnection,
+    );
   }
 }

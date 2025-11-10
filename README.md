@@ -527,9 +527,16 @@ lib/
 │   │   ├── network_info.dart
 │   │   └── connectivity_observer.dart
 │   ├── sync/
+│   │   ├── extensions/
+│   │   │   └── sync_extensions.dart
 │   │   ├── sync_manager.dart
 │   │   ├── sync_queue.dart
 │   │   ├── conflict_resolver.dart
+│   │   ├── sync_item.dart
+│   │   ├── sync_service.dart
+│   │   ├── sync.logger.dart
+│   │   ├── sync.service.dart
+│   │   ├── README.md
 │   │   └── sync_status.dart
 │   ├── utils/
 │   │   ├── date_utils.dart

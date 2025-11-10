@@ -20,7 +20,7 @@ class AppTheme {
         centerTitle: true,
         titleTextStyle: AppTextStyles.heading2.copyWith(color: Colors.white),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -97,7 +97,7 @@ class AppTheme {
         centerTitle: true,
         titleTextStyle: AppTextStyles.heading2.copyWith(color: Colors.white),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: const Color(0xFF1E1E1E),
         elevation: 2,
         shape: RoundedRectangleBorder(

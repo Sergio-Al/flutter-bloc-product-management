@@ -1,4 +1,9 @@
-// Estado y gestión del estado de sincronización
+// lib/core/sync/sync_status.dart
+import 'package:equatable/equatable.dart';
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum SyncState {
   idle,
@@ -8,91 +13,84 @@ enum SyncState {
   conflict,
 }
 
-class SyncStatus {
+/// Estrategia de resolución de conflictos
+enum ConflictResolutionStrategy {
+  serverWins,  // El servidor tiene la razón
+  localWins,   // El local tiene la razón
+  merge,       // Mezclar ambos
+  manual,      // Requiere intervención manual
+}
+
+// ============================================
+// SYNC STATUS
+// ============================================
+
+class SyncStatus extends Equatable {
   final SyncState state;
-  final DateTime? lastSyncTime;
-  final String? errorMessage;
-  final int pendingChanges;
-  final int conflictsCount;
+  final String? message;
+  final DateTime? lastSync;
+  final int pendingItems;
+  final int conflictItems;
 
   const SyncStatus({
     required this.state,
-    this.lastSyncTime,
-    this.errorMessage,
-    this.pendingChanges = 0,
-    this.conflictsCount = 0,
+    this.message,
+    this.lastSync,
+    this.pendingItems = 0,
+    this.conflictItems = 0,
   });
 
-  factory SyncStatus.idle() {
-    return const SyncStatus(state: SyncState.idle);
-  }
+  factory SyncStatus.idle() => const SyncStatus(state: SyncState.idle);
 
-  factory SyncStatus.syncing({int pendingChanges = 0}) {
-    return SyncStatus(
-      state: SyncState.syncing,
-      pendingChanges: pendingChanges,
-    );
-  }
+  factory SyncStatus.syncing({int pendingItems = 0}) => SyncStatus(
+        state: SyncState.syncing,
+        message: 'Sincronizando...',
+        pendingItems: pendingItems,
+      );
 
-  factory SyncStatus.success({
-    required DateTime lastSyncTime,
-    int pendingChanges = 0,
-  }) {
-    return SyncStatus(
-      state: SyncState.success,
-      lastSyncTime: lastSyncTime,
-      pendingChanges: pendingChanges,
-    );
-  }
+  factory SyncStatus.success({DateTime? lastSync}) => SyncStatus(
+        state: SyncState.success,
+        message: 'Sincronización completada',
+        lastSync: lastSync ?? DateTime.now(),
+      );
 
-  factory SyncStatus.error({
-    required String errorMessage,
-    int pendingChanges = 0,
-  }) {
-    return SyncStatus(
-      state: SyncState.error,
-      errorMessage: errorMessage,
-      pendingChanges: pendingChanges,
-    );
-  }
+  factory SyncStatus.error(String message) => SyncStatus(
+        state: SyncState.error,
+        message: message,
+      );
 
-  factory SyncStatus.conflict({
-    required int conflictsCount,
-    int pendingChanges = 0,
-  }) {
-    return SyncStatus(
-      state: SyncState.conflict,
-      conflictsCount: conflictsCount,
-      pendingChanges: pendingChanges,
-    );
-  }
-
-  bool get isIdle => state == SyncState.idle;
-  bool get isSyncing => state == SyncState.syncing;
-  bool get isSuccess => state == SyncState.success;
-  bool get isError => state == SyncState.error;
-  bool get hasConflicts => state == SyncState.conflict;
-  bool get hasPendingChanges => pendingChanges > 0;
+  factory SyncStatus.conflict({required int conflictItems}) => SyncStatus(
+        state: SyncState.conflict,
+        message: 'Conflictos detectados',
+        conflictItems: conflictItems,
+      );
 
   SyncStatus copyWith({
     SyncState? state,
-    DateTime? lastSyncTime,
-    String? errorMessage,
-    int? pendingChanges,
-    int? conflictsCount,
+    String? message,
+    DateTime? lastSync,
+    int? pendingItems,
+    int? conflictItems,
   }) {
     return SyncStatus(
       state: state ?? this.state,
-      lastSyncTime: lastSyncTime ?? this.lastSyncTime,
-      errorMessage: errorMessage ?? this.errorMessage,
-      pendingChanges: pendingChanges ?? this.pendingChanges,
-      conflictsCount: conflictsCount ?? this.conflictsCount,
+      message: message ?? this.message,
+      lastSync: lastSync ?? this.lastSync,
+      pendingItems: pendingItems ?? this.pendingItems,
+      conflictItems: conflictItems ?? this.conflictItems,
     );
   }
+
+  @override
+  List<Object?> get props => [state, message, lastSync, pendingItems, conflictItems];
 }
 
+// ============================================
+// SYNC RESULT
+// ============================================
+
 /// Resultado de una operación de sincronización
-class SyncResult {
+class SyncResult extends Equatable {
   final int success;
   final int failed;
   final List<String> errors;
@@ -103,13 +101,36 @@ class SyncResult {
     required this.errors,
   });
 
-  bool get hasErrors => failed > 0;
+  factory SyncResult.empty() => const SyncResult(
+        success: 0,
+        failed: 0,
+        errors: [],
+      );
+
+  /// Indica si la sincronización fue exitosa (sin fallos)
   bool get isSuccess => failed == 0;
+
+  /// Total de operaciones
   int get total => success + failed;
+
+  /// Porcentaje de éxito
+  double get successRate => total == 0 ? 0.0 : (success / total) * 100;
+
+  @override
+  List<Object?> get props => [success, failed, errors];
+
+  @override
+  String toString() {
+    return 'SyncResult(success: $success, failed: $failed, errors: ${errors.length})';
+  }
 }
 
-/// Conflicto de sincronización
-class SyncConflict {
+// ============================================
+// SYNC CONFLICT
+// ============================================
+
+/// Representa un conflicto de sincronización entre local y servidor
+class SyncConflict extends Equatable {
   final String id;
   final String table;
   final Map<String, dynamic> localRecord;
@@ -125,25 +146,54 @@ class SyncConflict {
     required this.localTimestamp,
     required this.serverTimestamp,
   });
+
+  /// Indica si el servidor tiene la versión más reciente
+  bool get serverIsNewer => serverTimestamp.isAfter(localTimestamp);
+
+  /// Indica si el local tiene la versión más reciente
+  bool get localIsNewer => localTimestamp.isAfter(serverTimestamp);
+
+  /// Diferencia de tiempo entre versiones
+  Duration get timeDifference => serverTimestamp.difference(localTimestamp).abs();
+
+  /// Obtiene los campos que difieren entre local y servidor
+  Map<String, dynamic> getDifferences() {
+    final differences = <String, dynamic>{};
+    
+    for (final key in localRecord.keys) {
+      if (localRecord[key] != serverRecord[key]) {
+        differences[key] = {
+          'local': localRecord[key],
+          'server': serverRecord[key],
+        };
+      }
+    }
+    
+    return differences;
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        table,
+        localRecord,
+        serverRecord,
+        localTimestamp,
+        serverTimestamp,
+      ];
+
+  @override
+  String toString() {
+    return 'SyncConflict(id: $id, table: $table, timeDiff: ${timeDifference.inSeconds}s)';
+  }
 }
 
-/// Estrategia de resolución de conflictos
-enum ConflictResolutionStrategy {
-  /// El servidor gana - usar datos del servidor
-  serverWins,
-
-  /// Local gana - usar datos locales
-  localWins,
-
-  /// Merge - combinar ambos
-  merge,
-
-  /// Manual - requiere intervención del usuario
-  manual,
-}
+// ============================================
+// SERVER SYNC STATUS
+// ============================================
 
 /// Estado de sincronización del servidor
-class ServerSyncStatus {
+class ServerSyncStatus extends Equatable {
   final DateTime serverTime;
   final bool isOnline;
   final Map<String, int> pendingCounts;
@@ -154,7 +204,17 @@ class ServerSyncStatus {
     required this.pendingCounts,
   });
 
-  int get totalPending {
-    return pendingCounts.values.fold<int>(0, (sum, count) => sum + count);
+  /// Total de registros pendientes en el servidor
+  int get totalPending => pendingCounts.values.fold(0, (sum, count) => sum + count);
+
+  /// Indica si hay cambios pendientes
+  bool get hasPendingChanges => totalPending > 0;
+
+  @override
+  List<Object?> get props => [serverTime, isOnline, pendingCounts];
+
+  @override
+  String toString() {
+    return 'ServerSyncStatus(online: $isOnline, pending: $totalPending)';
   }
 }

@@ -1,84 +1,121 @@
-// Cola de sincronización para operaciones pendientes
 import 'dart:collection';
-
-enum SyncOperation { create, update, delete }
-
-class SyncQueueItem {
-  final String id;
-  final String entityType;
-  final String entityId;
-  final SyncOperation operation;
-  final Map<String, dynamic> data;
-  final DateTime timestamp;
-  final int priority;
-  int retryCount;
-
-  SyncQueueItem({
-    required this.id,
-    required this.entityType,
-    required this.entityId,
-    required this.operation,
-    required this.data,
-    required this.timestamp,
-    this.priority = 2,
-    this.retryCount = 0,
-  });
-}
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'sync_item.dart';
 
 class SyncQueue {
-  final Queue<SyncQueueItem> _queue = Queue();
+  static const String _queueKey = 'sync_queue';
+  final Queue<SyncItem> _queue = Queue<SyncItem>();
+  final SharedPreferences _prefs;
 
-  /// Agrega un item a la cola de sincronización
-  void enqueue(SyncQueueItem item) {
+  SyncQueue(this._prefs) {
+    _loadQueue();
+  }
+
+  /// Agregar item a la cola
+  Future<void> enqueue(SyncItem item) async {
     _queue.add(item);
-    _sortByPriority();
+    await _saveQueue();
   }
 
-  /// Obtiene el siguiente item de la cola sin removerlo
-  SyncQueueItem? peek() {
-    return _queue.isEmpty ? null : _queue.first;
+  /// Obtener siguiente item sin removerlo
+  SyncItem? peek() {
+    if (_queue.isEmpty) return null;
+    return _queue.first;
   }
 
-  /// Remueve y retorna el siguiente item de la cola
-  SyncQueueItem? dequeue() {
-    return _queue.isEmpty ? null : _queue.removeFirst();
+  /// Remover y obtener siguiente item
+  SyncItem? dequeue() {
+    if (_queue.isEmpty) return null;
+    final item = _queue.removeFirst();
+    _saveQueue();
+    return item;
   }
 
-  /// Remueve un item específico de la cola
-  void remove(String id) {
-    _queue.removeWhere((item) => item.id == id);
+  /// Remover item específico por ID
+  Future<void> remove(String itemId) async {
+    _queue.removeWhere((item) => item.id == itemId);
+    await _saveQueue();
   }
 
-  /// Retorna todos los items de la cola
-  List<SyncQueueItem> getAll() {
-    return _queue.toList();
-  }
+  /// Obtener todos los items
+  List<SyncItem> getAll() => _queue.toList();
 
-  /// Retorna items de un tipo de entidad específico
-  List<SyncQueueItem> getByEntityType(String entityType) {
+  /// Obtener items por tipo de entidad
+  List<SyncItem> getByEntityType(SyncEntityType entityType) {
     return _queue.where((item) => item.entityType == entityType).toList();
   }
 
-  /// Limpia la cola
-  void clear() {
-    _queue.clear();
+  /// Obtener items pendientes (con menos de 3 reintentos)
+  List<SyncItem> getPending() {
+    return _queue.where((item) => item.retryCount < 3).toList();
   }
 
-  /// Retorna el tamaño de la cola
-  int get size => _queue.length;
+  /// Obtener items con errores
+  List<SyncItem> getErrors() {
+    return _queue.where((item) => item.error != null).toList();
+  }
 
-  /// Verifica si la cola está vacía
+  /// Contar items en la cola
+  int get length => _queue.length;
+
+  /// Verificar si está vacía
   bool get isEmpty => _queue.isEmpty;
 
-  /// Ordena la cola por prioridad
-  void _sortByPriority() {
-    final items = _queue.toList();
-    items.sort((a, b) {
-      final priorityCompare = a.priority.compareTo(b.priority);
-      if (priorityCompare != 0) return priorityCompare;
-      return a.timestamp.compareTo(b.timestamp);
-    });
+  /// Limpiar toda la cola
+  Future<void> clear() async {
     _queue.clear();
-    _queue.addAll(items);
+    await _saveQueue();
+  }
+
+  /// Reintentar item con error
+  Future<void> retry(String itemId) async {
+    final index = _queue.toList().indexWhere((item) => item.id == itemId);
+    if (index != -1) {
+      final item = _queue.elementAt(index);
+      final updated = item.copyWith(
+        retryCount: item.retryCount + 1,
+        error: null,
+      );
+      
+      // Remover y agregar al final
+      _queue.remove(item);
+      _queue.add(updated);
+      await _saveQueue();
+    }
+  }
+
+  /// Marcar item con error
+  Future<void> markError(String itemId, String error) async {
+    final index = _queue.toList().indexWhere((item) => item.id == itemId);
+    if (index != -1) {
+      final item = _queue.elementAt(index);
+      final updated = item.copyWith(error: error);
+      
+      // Reemplazar en la cola
+      final list = _queue.toList();
+      list[index] = updated;
+      _queue.clear();
+      _queue.addAll(list);
+      await _saveQueue();
+    }
+  }
+
+  /// Guardar cola en SharedPreferences
+  Future<void> _saveQueue() async {
+    final jsonList = _queue.map((item) => item.toJson()).toList();
+    await _prefs.setString(_queueKey, json.encode(jsonList));
+  }
+
+  /// Cargar cola desde SharedPreferences
+  void _loadQueue() {
+    final jsonString = _prefs.getString(_queueKey);
+    if (jsonString != null) {
+      final jsonList = json.decode(jsonString) as List;
+      _queue.clear();
+      _queue.addAll(
+        jsonList.map((json) => SyncItem.fromJson(json)),
+      );
+    }
   }
 }

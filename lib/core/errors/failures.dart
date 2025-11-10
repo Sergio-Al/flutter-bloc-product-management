@@ -1,63 +1,51 @@
-// Clases de fallo para el manejo de errores
 import 'package:equatable/equatable.dart';
+import '../sync/sync_status.dart';
 
-/// Fallo base
 abstract class Failure extends Equatable {
   final String message;
-  final String? code;
 
-  const Failure(this.message, {this.code});
+  const Failure({required this.message});
 
   @override
-  List<Object?> get props => [message, code];
+  List<Object?> get props => [message];
 }
 
-/// Fallo de servidor
 class ServerFailure extends Failure {
-  const ServerFailure(super.message, {super.code});
+  const ServerFailure({required super.message});
 }
 
-/// Fallo de cache/base de datos local
 class CacheFailure extends Failure {
-  const CacheFailure(super.message, {super.code});
+  const CacheFailure({required super.message});
 }
 
-/// Fallo de red
 class NetworkFailure extends Failure {
-  const NetworkFailure(super.message, {super.code});
+  const NetworkFailure({required super.message});
 }
 
-/// Fallo de autenticación
-class AuthFailure extends Failure {
-  const AuthFailure(super.message, {super.code});
-}
-
-/// Fallo de validación
-class ValidationFailure extends Failure {
-  const ValidationFailure(super.message, {super.code});
-}
-
-/// Fallo de sincronización
 class SyncFailure extends Failure {
-  const SyncFailure(super.message, {super.code});
+  const SyncFailure({required super.message});
 }
 
-/// Fallo de conflicto
 class ConflictFailure extends Failure {
-  const ConflictFailure(super.message, {super.code});
+  final SyncConflict conflict;
+
+  const ConflictFailure({
+    required super.message,
+    required this.conflict,
+  });
+
+  @override
+  List<Object?> get props => [message, conflict];
 }
 
-/// Fallo de permisos
+class ValidationFailure extends Failure {
+  const ValidationFailure({required super.message});
+}
+
+class AuthenticationFailure extends Failure {
+  const AuthenticationFailure({required super.message});
+}
+
 class PermissionFailure extends Failure {
-  const PermissionFailure(super.message, {super.code});
-}
-
-/// Fallo de recurso no encontrado
-class NotFoundFailure extends Failure {
-  const NotFoundFailure(super.message, {super.code});
-}
-
-/// Fallo inesperado
-class UnexpectedFailure extends Failure {
-  const UnexpectedFailure(super.message, {super.code});
+  const PermissionFailure({required super.message});
 }
