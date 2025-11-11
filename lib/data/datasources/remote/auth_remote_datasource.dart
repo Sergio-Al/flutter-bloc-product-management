@@ -173,18 +173,33 @@ class AuthRemoteDataSource extends SupabaseDataSource {
 
       AppLogger.auth('Obteniendo perfil de usuario: $uid');
 
-      final response = await SupabaseDataSource.client
-          .from('usuarios')
-          .select('''
-            *,
-            rol:roles(*),
-            tienda:tiendas(*)
-          ''')
-          .eq('auth_user_id', uid)
-          .single();
+      try {
+        // Primero intentar con joins
+        final response = await SupabaseDataSource.client
+            .from('usuarios')
+            .select('''
+              *,
+              rol:roles(*),
+              tienda:tiendas(*)
+            ''')
+            .eq('auth_user_id', uid)
+            .single();
 
-      AppLogger.auth('✅ Perfil obtenido: ${response['email']}');
-      return response;
+        AppLogger.auth('✅ Perfil obtenido: ${response['email']}');
+        return response;
+      } catch (e) {
+        AppLogger.auth('⚠️ Error con joins, intentando sin ellos: $e');
+        
+        // Si falla, intentar sin los joins (solo datos básicos)
+        final response = await SupabaseDataSource.client
+            .from('usuarios')
+            .select('*')
+            .eq('auth_user_id', uid)
+            .single();
+
+        AppLogger.auth('✅ Perfil obtenido (sin joins): ${response['email']}');
+        return response;
+      }
     });
   }
 

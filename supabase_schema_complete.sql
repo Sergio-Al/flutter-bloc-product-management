@@ -547,7 +547,7 @@ BEGIN
         datos_nuevos,
         ip_address
     ) VALUES (
-        COALESCE(NEW.usuario_id, OLD.usuario_id),
+        COALESCE(NEW.id, OLD.id),  -- ✅ CORREGIDO: usar 'id' en lugar de 'usuario_id'
         TG_TABLE_NAME,
         TG_OP,
         CASE WHEN TG_OP IN ('DELETE', 'UPDATE') THEN row_to_json(OLD) ELSE NULL END,

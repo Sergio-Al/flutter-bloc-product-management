@@ -33,10 +33,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       // Authenticate with Supabase
-      await remoteDatasource.login(
-        email: email,
-        password: password,
-      );
+      await remoteDatasource.login(email: email, password: password);
 
       // Fetch user data from usuarios table
       final userProfile = await remoteDatasource.getUserProfile();
@@ -76,25 +73,14 @@ class AuthRepositoryImpl implements AuthRepository {
         nombreCompleto: nombreCompleto,
       );
 
-      // For now, create a minimal usuario model from auth data
-      // Note: rolId uses a default "user" role UUID - you may need to update this
-      // to match your actual default role ID in the database
-      final usuarioModel = UsuarioModel(
-        id: authResponse.user!.id,
-        authUserId: authResponse.user!.id,
-        email: email,
-        nombreCompleto: nombreCompleto,
-        telefono: telefono,
-        rolId: '00000000-0000-0000-0000-000000000004', // Placeholder - update with actual default role
-        tiendaId: null,
-        activo: true,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      // Esperar un momento para que el trigger se ejecute
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // Cache user data locally
+      // Obtener el perfil completo de la base de datos
+      final userProfile = await remoteDatasource.getUserProfile();
+      final usuarioModel = UsuarioModel.fromJson(userProfile);
+
       await localDatasource.cacheUser(usuarioModel);
-
       return Right(usuarioModel.toEntity());
     } on AuthenticationException catch (e) {
       return Left(AuthenticationFailure(message: e.message));

@@ -427,6 +427,42 @@ INSERT INTO public.usuarios (
 );
 ```
 
+### Paso 5.1 🔧 Configuración del Trigger de Autenticación
+
+#### Trigger Automático de Creación de Perfil
+
+Cuando un usuario se registra en Supabase Auth, necesitas que automáticamente se cree su perfil en la tabla `usuarios`. Para esto, ejecuta el archivo **`supabase_trigger_complete.sql`** en tu proyecto.
+
+Este script hace lo siguiente:
+- ✅ Crea un trigger que detecta nuevos usuarios en `auth.users`
+- ✅ Asigna automáticamente el rol "Vendedor" por defecto
+- ✅ Asigna la primera tienda activa disponible
+- ✅ Configura políticas RLS para que los usuarios puedan leer/actualizar su perfil
+- ✅ Corrige la función de auditoría para usar el campo correcto (`id` en lugar de `usuario_id`)
+
+**Cómo ejecutar:**
+1. Ve a **Supabase Dashboard** → **SQL Editor**
+2. Abre el archivo `supabase_trigger_complete.sql` del proyecto
+3. Copia y pega todo el contenido
+4. Haz click en **Run**
+5. Verifica que veas el mensaje: `✅ TRIGGER CREADO CORRECTAMENTE`
+
+**Requisitos previos:**
+- Debe existir al menos un rol con nombre "vendedor" en la tabla `roles`
+- Debe existir al menos una tienda activa en la tabla `tiendas`
+
+#### Deshabilitar Confirmación de Email (Desarrollo)
+
+Durante el desarrollo, es recomendable deshabilitar la confirmación de email para evitar rate limits:
+
+1. Ve a **Supabase Dashboard** → **Authentication** → **Settings**
+2. En **Email Auth**, desactiva: **"Enable email confirmations"**
+3. Guarda los cambios
+
+Esto te permitirá registrar usuarios sin esperar emails de confirmación.
+
+⚠️ **Importante:** En producción, vuelve a habilitar la confirmación de email para seguridad.
+
 ### Paso 6: Probar la Conexión
 
 1. Ejecuta tu app Flutter
