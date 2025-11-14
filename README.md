@@ -627,16 +627,17 @@ lib/
 │   │       └── sync_remote_datasource.dart
 │   │
 │   ├── models/
-│   │   ├── usuario_model.dart
-│   │   ├── producto_model.dart
-│   │   ├── inventario_model.dart
-│   │   ├── movimiento_model.dart
-│   │   ├── tienda_model.dart
 │   │   ├── almacen_model.dart
-│   │   ├── proveedor_model.dart
-│   │   ├── lote_model.dart
 │   │   ├── categoria_model.dart
-│   │   └── sync_status_model.dart
+│   │   ├── inventario_model.dart
+│   │   ├── lote_model.dart
+│   │   ├── movimiento_model.dart
+│   │   ├── producto_model.dart
+│   │   ├── proveedor_model.dart
+│   │   ├── rol_model.dart
+│   │   ├── tienda_model.dart
+│   │   ├── usuario_model.dart
+│   │   └── usuario_medida_model.dart
 │   │
 │   └── repositories/
 │       ├── auth_repository_impl.dart
@@ -653,16 +654,17 @@ lib/
 │
 ├── domain/
 │   ├── entities/
-│   │   ├── usuario.dart
-│   │   ├── producto.dart
-│   │   ├── inventario.dart
-│   │   ├── movimiento.dart
-│   │   ├── tienda.dart
 │   │   ├── almacen.dart
-│   │   ├── proveedor.dart
+│   │   |── categoria.dart
+│   │   ├── inventario.dart
 │   │   ├── lote.dart
-│   │   └── categoria.dart
-│   │
+│   │   ├── movimiento.dart
+│   │   ├── producto.dart
+│   │   ├── proveedor.dart
+│   │   ├── rol.dart
+│   │   ├── tienda.dart
+│   │   ├── unidad_medida.dart
+│   │   └── usuario.dart
 │   ├── repositories/
 │   │   ├── auth_repository.dart
 │   │   ├── usuario_repository.dart

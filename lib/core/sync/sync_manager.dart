@@ -9,6 +9,15 @@ import 'sync_item.dart';
 import 'conflict_resolver.dart' hide SyncConflict;
 import '../../data/datasources/local/database/app_database.dart';
 
+/// SyncManager - Coordina la sincronización offline-first
+/// 
+/// TODO: Implementaciones pendientes:
+/// 1. Agregar remote datasources como dependencias (ProductoRemoteDatasource, etc.)
+/// 2. Implementar _syncProducto, _syncInventario, _syncMovimiento con datasources reales
+/// 3. Implementar _pullFromServer para traer cambios del servidor
+/// 4. Agregar tracking de last_sync timestamp para sincronización incremental
+/// 5. Implementar batch syncing para mejorar performance
+/// 6. Agregar soporte para todos los tipos de entidades (12 tablas)
 class SyncManager {
   final AppDatabase _localDb;
   final SyncQueue _syncQueue;
