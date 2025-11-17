@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_management_system/core/errors/failures.dart';
 import 'package:flutter_management_system/core/network/network_info.dart';
 import 'package:flutter_management_system/core/sync/sync_manager.dart';
+import 'package:flutter_management_system/core/sync/sync_item.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/domain/entities/almacen.dart';
@@ -29,9 +30,28 @@ class AlmacenRepositoryImpl extends AlmacenRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> deleteAlmacen(String id) {
-    // TODO: implement deleteAlmacen
-    throw UnimplementedError();
+  Future<Either<Failure, Unit>> deleteAlmacen(String id) async {
+    try {
+      // 1. ALWAYS delete locally first (soft delete - works offline)
+      final deleted = await almacenDao.deleteAlmacen(id);
+
+      if (!deleted) {
+        return Left(CacheFailure(message: 'Almacen not found locally'));
+      }
+
+      // 2. Add to sync queue
+      await syncManager.queueChange(
+        entityId: id,
+        entityType: SyncEntityType.almacen,
+        operation: SyncOperation.delete,
+        data: {'id': id}, // Minimal data for delete
+      );
+
+      // 3. SyncManager handles syncing automatically
+      return const Right(unit);
+    } catch (e) {
+      return Left(CacheFailure(message: 'Failed to delete almacen: $e'));
+    }
   }
 
   @override
