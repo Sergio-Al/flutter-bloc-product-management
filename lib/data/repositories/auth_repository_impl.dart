@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/errors/failures.dart';
 import '../../core/network/network_info.dart';
@@ -38,6 +39,8 @@ class AuthRepositoryImpl implements AuthRepository {
       // Fetch user data from usuarios table
       final userProfile = await remoteDatasource.getUserProfile();
       final usuarioModel = UsuarioModel.fromJson(userProfile);
+
+      AppLogger.info('User logged in: ${usuarioModel.id}');
 
       // Cache user data locally
       await localDatasource.cacheUser(usuarioModel);

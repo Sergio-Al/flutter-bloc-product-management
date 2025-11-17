@@ -534,26 +534,50 @@ CREATE TRIGGER update_categorias_last_sync BEFORE UPDATE ON public.categorias
     FOR EACH ROW EXECUTE FUNCTION update_last_sync();
 
 -- ============================================
--- FUNCIÓN: Registrar auditoría automáticamente
+-- AUDITORÍA: ACTUALMENTE DESHABILITADA
 -- ============================================
+-- ⚠️ Los triggers de auditoría están deshabilitados porque causaban errores FK.
+-- El problema: el trigger intentaba usar el 'id' del registro (ej: producto.id)
+-- como 'usuario_id' en la tabla auditorias, pero ese ID no existe en usuarios.
+--
+-- ✅ SOLUCIÓN: Usar auth.uid() para obtener el usuario autenticado actual
+-- y luego buscar su correspondiente usuarios.id via auth_user_id.
+--
+-- 📝 Para habilitar la auditoría correctamente, ejecutar:
+--    supabase_audit_triggers.sql (archivo separado con implementación correcta)
+--
+-- NO ejecutar este código hasta que se implemente correctamente:
+/*
 CREATE OR REPLACE FUNCTION registrar_auditoria()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_usuario_id UUID;
 BEGIN
-    INSERT INTO public.auditorias (
-        usuario_id,
-        tabla_afectada,
-        accion,
-        datos_anteriores,
-        datos_nuevos,
-        ip_address
-    ) VALUES (
-        COALESCE(NEW.id, OLD.id),  -- ✅ CORREGIDO: usar 'id' en lugar de 'usuario_id'
-        TG_TABLE_NAME,
-        TG_OP,
-        CASE WHEN TG_OP IN ('DELETE', 'UPDATE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
-        inet_client_addr()
-    );
+    -- Obtener usuarios.id desde auth.uid()
+    SELECT id INTO v_usuario_id
+    FROM public.usuarios
+    WHERE auth_user_id = auth.uid()
+    AND activo = true
+    LIMIT 1;
+    
+    -- Solo auditar si hay usuario autenticado
+    IF v_usuario_id IS NOT NULL THEN
+        INSERT INTO public.auditorias (
+            usuario_id,
+            tabla_afectada,
+            accion,
+            datos_anteriores,
+            datos_nuevos,
+            ip_address
+        ) VALUES (
+            v_usuario_id,  -- ✅ CORRECTO: usuario real del sistema
+            TG_TABLE_NAME,
+            TG_OP,
+            CASE WHEN TG_OP IN ('DELETE', 'UPDATE') THEN row_to_json(OLD) ELSE NULL END,
+            CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
+            inet_client_addr()
+        );
+    END IF;
     
     RETURN COALESCE(NEW, OLD);
 END;
@@ -571,6 +595,7 @@ CREATE TRIGGER audit_movimientos AFTER INSERT OR UPDATE OR DELETE ON public.movi
 
 CREATE TRIGGER audit_usuarios AFTER INSERT OR UPDATE OR DELETE ON public.usuarios
     FOR EACH ROW EXECUTE FUNCTION registrar_auditoria();
+*/
 
 -- ============================================
 -- DATOS INICIALES (SEED DATA)
@@ -586,6 +611,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Insertar unidades de medida
 INSERT INTO public.unidades_medida (nombre, abreviatura, tipo, factor_conversion) VALUES
+    ('Unidad', 'UND', 'Unidad', 1.0),
     ('Bolsa', 'BLS', 'Unidad', 1.0),
     ('Metro', 'M', 'Longitud', 1.0),
     ('Kilogramo', 'KG', 'Peso', 1.0),
@@ -600,6 +626,7 @@ ON CONFLICT (nombre) DO NOTHING;
 
 -- Insertar categorías principales
 INSERT INTO public.categorias (nombre, codigo, descripcion, requiere_lote, requiere_certificacion) VALUES
+    ('Sin categoria', 'GEN', 'Categoría genérica para productos sin clasificación', false, false),
     ('Cemento', 'CEM', 'Cementos y derivados', true, true),
     ('Fierro y Acero', 'FIE', 'Varillas, mallas, perfiles de acero', false, true),
     ('Madera', 'MAD', 'Madera y productos derivados', false, false),

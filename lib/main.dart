@@ -12,13 +12,14 @@ import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/auth/register_page.dart';
 import 'presentation/pages/auth/splash_screen.dart';
 import 'presentation/pages/home/home_page.dart';
+import 'presentation/pages/productos/productos_list_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
   await EnvConfig.load();
-  
+
   // Initialize Supabase
   await SupabaseConfig.initialize();
 
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/forgot-password': (context) => const ForgotPasswordPage(),
           '/home': (context) => const HomePage(),
+          '/productos': (context) => const ProductosListPage(),
         },
       ),
     );

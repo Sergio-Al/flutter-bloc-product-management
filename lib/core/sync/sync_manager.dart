@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
 import 'sync_status.dart';
@@ -8,21 +9,21 @@ import 'sync_queue.dart';
 import 'sync_item.dart';
 import 'conflict_resolver.dart' hide SyncConflict;
 import '../../data/datasources/local/database/app_database.dart';
+import '../../data/datasources/remote/producto_remote_datasource.dart';
+import '../../domain/entities/producto.dart';
 
 /// SyncManager - Coordina la sincronización offline-first
 /// 
-/// TODO: Implementaciones pendientes:
-/// 1. Agregar remote datasources como dependencias (ProductoRemoteDatasource, etc.)
-/// 2. Implementar _syncProducto, _syncInventario, _syncMovimiento con datasources reales
-/// 3. Implementar _pullFromServer para traer cambios del servidor
-/// 4. Agregar tracking de last_sync timestamp para sincronización incremental
-/// 5. Implementar batch syncing para mejorar performance
-/// 6. Agregar soporte para todos los tipos de entidades (12 tablas)
+/// Manages bidirectional sync between local database and remote server
 class SyncManager {
   final AppDatabase _localDb;
   final SyncQueue _syncQueue;
   final NetworkInfo _networkInfo;
   final ConflictResolver _conflictResolver;
+  
+  // Remote datasources
+  final ProductoRemoteDataSource _productoRemote;
+  // TODO: Add other remote datasources as they're created
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -37,10 +38,12 @@ class SyncManager {
     required AppDatabase localDb,
     required SyncQueue syncQueue,
     required NetworkInfo networkInfo,
+    required ProductoRemoteDataSource productoRemote,
     ConflictResolver? conflictResolver,
   })  : _localDb = localDb,
         _syncQueue = syncQueue,
         _networkInfo = networkInfo,
+        _productoRemote = productoRemote,
         _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
@@ -80,6 +83,8 @@ class SyncManager {
       int successCount = 0;
       int errorCount = 0;
       final conflicts = <SyncConflict>[];
+      
+      AppLogger.info('Iniciando sincronización de ${pendingItems.length} items pendientes');
 
       for (final item in pendingItems) {
         final result = await _syncItem(item);
@@ -154,17 +159,70 @@ class SyncManager {
 
   /// Ejemplo de sincronización de producto
   Future<Either<Failure, void>> _syncProducto(SyncItem item) async {
-    // Esta es una implementación de ejemplo
-    // Deberías usar tu ProductoRemoteDatasource aquí
-    
     try {
-      // TODO: Implementar con el datasource real
-      // await _productoRemoteDatasource.sync(item);
+      // Convert camelCase data to snake_case for Supabase
+      final remoteData = _convertToRemoteFormat(item.data);
       
+      switch (item.operation) {
+        case SyncOperation.create:
+          // Create on server
+          await _productoRemote.createProducto(remoteData);
+          
+          // Note: Server returns producto with generated ID/timestamps
+          // Local already has the data, no need to update again
+          break;
+
+        case SyncOperation.update:
+          // Update on server
+          await _productoRemote.updateProducto(
+            id: item.entityId,
+            data: remoteData,
+          );
+          break;
+
+        case SyncOperation.delete:
+          // Delete on server (soft delete)
+          await _productoRemote.deleteProducto(item.entityId);
+          break;
+      }
+
       return const Right(null);
     } catch (e) {
-      return Left(SyncFailure(message: e.toString()));
+      return Left(SyncFailure(message: 'Failed to sync producto: $e'));
     }
+  }
+
+  /// Convert camelCase JSON to snake_case for Supabase
+  Map<String, dynamic> _convertToRemoteFormat(Map<String, dynamic> data) {
+    return {
+      'id': data['id'],
+      'nombre': data['nombre'],
+      'codigo': data['codigo'],
+      'descripcion': data['descripcion'],
+      'categoria_id': data['categoriaId'],
+      'unidad_medida_id': data['unidadMedidaId'],
+      'proveedor_principal_id': data['proveedorPrincipalId'],
+      'precio_compra': data['precioCompra'],
+      'precio_venta': data['precioVenta'],
+      'peso_unitario_kg': data['pesoUnitarioKg'],
+      'volumen_unitario_m3': data['volumenUnitarioM3'],
+      'stock_minimo': data['stockMinimo'],
+      'stock_maximo': data['stockMaximo'],
+      'marca': data['marca'],
+      'grado_calidad': data['gradoCalidad'],
+      'norma_tecnica': data['normaTecnica'],
+      'requiere_almacen_cubierto': data['requiereAlmacenCubierto'],
+      'material_peligroso': data['materialPeligroso'],
+      'imagen_url': data['imagenUrl'],
+      'ficha_tecnica_url': data['fichaTecnicaUrl'],
+      'activo': data['activo'],
+      'created_at': data['createdAt'],
+      'updated_at': data['updatedAt'],
+      'deleted_at': data['deletedAt'],
+      // ❌ Don't send sync_id to Supabase - it's local-only
+      // 'sync_id': data['syncId'], 
+      'last_sync': data['lastSync'],
+    };
   }
 
   /// Ejemplo de sincronización de inventario

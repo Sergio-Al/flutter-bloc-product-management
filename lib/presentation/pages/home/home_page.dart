@@ -145,9 +145,7 @@ class HomePage extends StatelessWidget {
                         title: 'Productos',
                         subtitle: 'Gestionar productos',
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Productos próximamente')),
-                          );
+                          Navigator.pushNamed(context, '/productos');
                         },
                       ),
                       _buildActionCard(

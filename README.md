@@ -291,64 +291,72 @@ flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-## Archivos SQL para Supabase
+## 📝 Configuración de Supabase - Documentación Completa
 
-### 1. Schema Principal: `supabase_schema_complete.sql`
-Contiene el esquema completo de la base de datos:
-- 12 tablas con relaciones y constraints
-- Campos de sincronización (sync_id, last_sync, sincronizado)
-- Triggers para auto-actualización de timestamps
-- Índices para optimización de consultas
-- Vistas para consultas complejas (vw_inventario_completo, vw_movimientos_completos, vw_productos_stock_bajo)
-- Funciones RPC (get_dashboard_stats)
-- Datos semilla (roles, unidades de medida, categorías)
+### 🚀 Inicio Rápido
 
-**Deployment:** Copiar y pegar el contenido completo en el SQL Editor de Supabase.
+Para configurar Supabase desde cero, sigue esta guía paso a paso:
 
-### 2. Políticas de Seguridad: `supabase_rls_policies.sql`
-Contiene las políticas de seguridad a nivel de fila (RLS) que protegen los datos:
-- Habilita RLS en todas las tablas
-- Funciones helper (get_user_tienda_id, is_admin, is_manager, user_has_role)
-- Políticas por tabla con permisos basados en roles
-- Restricciones por tienda para acceso multi-tenant
-- Control de operaciones CRUD según permisos de usuario
+👉 **[SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md)** - Guía completa de configuración
 
-**Deployment:** Ejecutar DESPUÉS de `supabase_schema_complete.sql`
+### 📚 Archivos SQL Disponibles
 
-> **Nota:** El contenido completo de las RLS policies se encuentra en el archivo `supabase_rls_policies.sql` del proyecto. A continuación se muestra un resumen de las políticas principales:
+| Archivo | Descripción | Orden | Obligatorio |
+|---------|-------------|-------|-------------|
+| `supabase_schema_complete.sql` | Schema completo (tablas, índices, triggers, datos seed) | 1️⃣ | ✅ SÍ |
+| `supabase_rls_policies.sql` | Políticas de seguridad RLS | 2️⃣ | ✅ SÍ |
+| `supabase_trigger_complete.sql` | Trigger de creación automática de perfiles | 3️⃣ | ✅ SÍ |
+| `supabase_audit_triggers.sql` | Sistema de auditoría (opcional) | 4️⃣ | ⚠️ OPCIONAL |
+
+### 📖 Documentación Adicional
+
+- **[SUPABASE_README.md](./SUPABASE_README.md)** - Índice de todos los archivos SQL con descripciones
+- **[CHANGELOG_SUPABASE.md](./CHANGELOG_SUPABASE.md)** - Historial de cambios y soluciones a problemas
+
+### ⚡ Resumen Ejecutivo
+
+**¿Qué hace cada script?**
+
+1. **supabase_schema_complete.sql**: Crea 12 tablas, índices, triggers básicos y datos iniciales
+2. **supabase_rls_policies.sql**: Configura seguridad con políticas inline (sin funciones problemáticas)
+3. **supabase_trigger_complete.sql**: Crea perfiles automáticamente al registrar usuarios
+4. **supabase_audit_triggers.sql**: Habilita logging de cambios en tablas críticas
+
+**Orden de ejecución:**
+```bash
+1. supabase_schema_complete.sql    ✅ Obligatorio
+2. supabase_rls_policies.sql       ✅ Obligatorio
+3. supabase_trigger_complete.sql   ✅ Obligatorio
+4. supabase_audit_triggers.sql     ⚠️  Opcional (recomendado para producción)
+```
+
+### 🔐 Políticas RLS - Resumen
+
+Las políticas RLS están configuradas usando **EXISTS() inline** para evitar problemas de type casting:
 
 ```sql
--- ============================================
--- RESUMEN DE POLÍTICAS RLS
--- (Ver supabase_rls_policies.sql para el código completo)
--- ============================================
-
--- 1. FUNCIONES HELPER
---    - get_user_tienda_id(): Obtiene la tienda del usuario autenticado
---    - user_has_role(role_name): Verifica si el usuario tiene un rol específico
---    - is_admin(): Verifica si el usuario es administrador
---    - is_manager(): Verifica si el usuario es gerente o admin
-
--- 2. POLÍTICAS POR TABLA
---    roles: Lectura para todos, modificación solo admin
---    tiendas: Lectura para todos, gestión solo admin
---    usuarios: Lectura propia + tienda, creación solo admin, actualización propia
---    almacenes: Lectura y gestión por tienda, solo gerentes
---    categorias: Lectura para todos, gestión solo admin
---    unidades_medida: Lectura para todos, gestión solo admin
---    proveedores: Lectura para todos, gestión solo gerentes
---    productos: Lectura para todos, gestión solo gerentes
---    lotes: Lectura para todos, gestión solo gerentes
---    inventarios: Lectura y gestión por tienda
---    movimientos: Lectura y creación por tienda, gestión solo admin
---    auditorias: Solo admin puede leer, sistema puede insertar
-
--- 3. VERIFICACIÓN
-SELECT schemaname, tablename, policyname, cmd
-FROM pg_policies 
-WHERE schemaname = 'public'
-ORDER BY tablename;
+-- ✅ Ejemplo de política corregida
+CREATE POLICY "Gerentes pueden crear productos"
+    ON public.productos FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre IN ('Gerente', 'Administrador')
+            AND u.activo = true
+        )
+    );
 ```
+
+**Permisos por rol:**
+- **Administrador**: Acceso completo
+- **Gerente**: Crear/actualizar productos, gestionar tienda
+- **Almacenero**: Gestión de inventarios y movimientos
+- **Vendedor**: Solo lectura
+
+Ver archivo completo: [supabase_rls_policies.sql](./supabase_rls_policies.sql)
 
 ## ⚙️ Configuración de Supabase
 
@@ -587,6 +595,7 @@ lib/
 ├── data/
 │   ├── datasources/
 │   │   ├── local/
+│   │   │   ├── auth_local_datasource.dart        # SharedPreferences cache for auth
 │   │   │   ├── database/
 │   │   │   │   ├── app_database.dart              # Drift database
 │   │   │   │   ├── app_database.g.dart            # Generated

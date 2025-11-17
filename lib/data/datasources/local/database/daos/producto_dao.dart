@@ -11,12 +11,19 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     with _$ProductoDaoMixin {
   ProductoDao(AppDatabase db) : super(db);
 
-  // Obtener todos los productos activos
+  // Obtener todos los productos
   Future<List<ProductoTable>> getAllProductos() {
     return (select(
       productos,
-    )..where((tbl) => tbl.activo.equals(true) & tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
   }
+
+  // Obtener productos activos
+  Future<List<ProductoTable>> getProductosActivos() {
+    return (select(
+      productos,
+    )..where((tbl) => tbl.activo.equals(true) & tbl.deletedAt.isNull())).get();
+  } 
 
   // Obtener productos con paginación
   Future<List<ProductoTable>> getProductosPaginated(int limit, int offset) {
@@ -123,8 +130,42 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     return result > 0;
   }
 
+  // Obtener productos que requieren almacenamiento especial
+  Future<List<ProductoTable>> getProductosAlmacenamientoEspecial() {
+    return (select(productos)..where(
+          (tbl) =>
+              tbl.requiereAlmacenCubierto.equals(true) &
+              tbl.deletedAt.isNull(),
+        ))
+        .get();
+  }
+
   // Obtener productos no sincronizados
   Future<List<ProductoTable>> getProductosNoSincronizados() {
     return (select(productos)..where((tbl) => tbl.lastSync.isNull())).get();
+  }
+
+  // 🧹 Clean up productos with invalid temp IDs (legacy cleanup)
+  Future<int> deleteProductosWithTempIds() async {
+    return await (delete(productos)..where((tbl) => tbl.id.like('temp_%'))).go();
+  }
+
+  // Get productos with temp IDs (for debugging)
+  Future<List<ProductoTable>> getProductosWithTempIds() {
+    return (select(productos)..where((tbl) => tbl.id.like('temp_%'))).get();
+  }
+
+  // 🧹 Reset temp sync_id to null (fixes sync issues)
+  Future<int> resetTempSyncIds() async {
+    return await (update(productos)
+      ..where((tbl) => tbl.syncId.like('temp_%')))
+      .write(const ProductosCompanion(
+        syncId: Value(null),
+      ));
+  }
+
+  // Get productos with temp sync_id (for debugging)
+  Future<List<ProductoTable>> getProductosWithTempSyncIds() {
+    return (select(productos)..where((tbl) => tbl.syncId.like('temp_%'))).get();
   }
 }

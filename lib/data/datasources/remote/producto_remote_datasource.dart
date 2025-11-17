@@ -41,6 +41,29 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     });
   }
 
+  // Obtiene los productos activos
+  Future<List<Map<String, dynamic>>> getProductosActivos() async {
+    return SupabaseDataSource.executeQuery(() async {
+      AppLogger.database('Obteniendo productos activos');
+
+      var query = SupabaseDataSource.client
+          .from(_tableName)
+          .select('''
+            *,
+            categoria:categorias(*),
+            unidad_medida:unidades_medida(*),
+            proveedor_principal:proveedores(*)
+          ''');
+
+      query = SupabaseDataSource.applyActiveFilter(query);
+
+      final response = await query;
+
+      AppLogger.database('✅ ${response.length} productos activos obtenidos');
+      return List<Map<String, dynamic>>.from(response);
+    });
+  }
+
   /// Obtiene un producto por ID
   Future<Map<String, dynamic>> getProductoById(String id) async {
     return SupabaseDataSource.executeQuery(() async {
@@ -97,7 +120,9 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     Map<String, dynamic> data,
   ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Creando producto: ${data['nombre']}');
+      try {
+
+      AppLogger.database('Creando producto para remote: ${data['nombre']}');
 
       final response = await SupabaseDataSource.client
           .from(_tableName)
@@ -107,6 +132,12 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
 
       AppLogger.database('✅ Producto creado: ${response['id']}');
       return response;
+      } catch (e) {
+        AppLogger.error('Error creating producto: $e');
+        throw app_exceptions.ServerException(
+          message: 'Failed to create producto: $e',
+        );
+      }
     });
   }
 

@@ -1,5 +1,14 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_management_system/core/sync/sync_manager.dart';
+import 'package:flutter_management_system/core/sync/sync_queue.dart';
+import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
+import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
+import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
+import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
+import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -117,6 +126,105 @@ Future<void> setupDependencies() async {
       getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
       updatePasswordUsecase: getIt<UpdatePasswordUsecase>(),
       resetPasswordUsecase: getIt<ResetPasswordUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Core - Sync System
+  // ============================================================================
+
+  // Sync Queue (persists pending operations)
+  getIt.registerLazySingleton<SyncQueue>(
+    () => SyncQueue(getIt<SharedPreferences>()),
+  );
+
+  // App Database (Drift)
+  getIt.registerLazySingleton<AppDatabase>(() => AppDatabase());
+
+  // Ensure default categories and units exist
+  await getIt<AppDatabase>().ensureDefaultsExist();
+
+  // Sync Manager (coordinates offline-first sync)
+  getIt.registerLazySingleton<SyncManager>(
+    () => SyncManager(
+      localDb: getIt<AppDatabase>(),
+      syncQueue: getIt<SyncQueue>(),
+      networkInfo: getIt<NetworkInfo>(),
+      productoRemote: getIt<ProductoRemoteDataSource>(),
+      // TODO: Add other remote datasources as they're created
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Productos
+  // ============================================================================
+
+  getIt.registerLazySingleton<ProductoRemoteDataSource>(
+    () => ProductoRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<ProductoDao>(
+    () => getIt<AppDatabase>().productoDao,
+  );
+
+  // ============================================================================
+  // Repositories - Productos
+  // ============================================================================
+
+  getIt.registerLazySingleton<ProductoRepository>(
+    () => ProductoRepositoryImpl(
+      remoteDataSource: getIt<ProductoRemoteDataSource>(),
+      productoDao: getIt<ProductoDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Productos
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetProductosUsecase>(
+    () => GetProductosUsecase(getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetProductosActivosUseCase>(
+    () => GetProductosActivosUseCase(repository: getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetProductoByCodigoUsecase>(
+    () => GetProductoByCodigoUsecase(getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<CreateProductoUsecase>(
+    () => CreateProductoUsecase(repository: getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateProductoUseCase>(
+    () => UpdateProductoUseCase(repository: getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteProductoUsecase>(
+    () => DeleteProductoUsecase(repository: getIt<ProductoRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetProductoByIdUsecase>(
+    () => GetProductoByIdUsecase(getIt<ProductoRepository>()),
+  );
+
+  // ============================================================================
+  // BLoCs - Productos
+  // ============================================================================
+
+  getIt.registerFactory<ProductoBloc>(
+    () => ProductoBloc(
+      getProductosUsecase: getIt<GetProductosUsecase>(),
+      getProductosActivosUseCase: getIt<GetProductosActivosUseCase>(),
+      getProductoByCodigoUsecase: getIt<GetProductoByCodigoUsecase>(),
+      createProductoUsecase: getIt<CreateProductoUsecase>(),
+      updateProductoUsecase: getIt<UpdateProductoUseCase>(),
+      deleteProductoUsecase: getIt<DeleteProductoUsecase>(),
+      getProductoByIdUsecase: getIt<GetProductoByIdUsecase>(),
     ),
   );
 }

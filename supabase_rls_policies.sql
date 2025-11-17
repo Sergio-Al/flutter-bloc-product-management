@@ -1,9 +1,24 @@
 -- ============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Sistema de Gestión de Materiales de Construcción
+-- VERSIÓN 2.0 - POLÍTICAS INLINE (SIN FUNCIONES PROBLEMÁTICAS)
 -- ============================================
 -- Estas políticas garantizan que los usuarios solo puedan acceder
 -- a los datos de su tienda asignada y según sus permisos de rol
+--
+-- ⚠️ CAMBIO IMPORTANTE:
+-- Las políticas ahora usan EXISTS() inline en lugar de funciones
+-- user_has_role() que causaban problemas de type casting.
+--
+-- ✅ VENTAJAS:
+-- - No hay problemas de type casting con roles
+-- - Más eficiente (menos saltos de función)
+-- - Más fácil de debuggear en Supabase Dashboard
+--
+-- 📋 ORDEN DE EJECUCIÓN:
+-- 1. Ejecutar supabase_schema_complete.sql (crear tablas)
+-- 2. Ejecutar este archivo (crear políticas RLS)
+-- 3. Ejecutar supabase_audit_triggers.sql (opcional: habilitar auditoría)
 --
 -- IMPORTANTE: Este archivo debe ejecutarse DESPUÉS de supabase_schema_complete.sql
 -- ============================================
@@ -25,9 +40,14 @@ ALTER TABLE public.movimientos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auditorias ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- FUNCIONES HELPER
+-- FUNCIONES HELPER (OPCIONALES)
 -- ============================================
+-- ⚠️ NOTA: Las funciones helper pueden causar problemas de type casting.
+-- Las políticas actuales usan EXISTS() inline en lugar de estas funciones.
+-- Estas funciones se mantienen aquí solo como referencia, pero NO son necesarias.
+-- Si deseas usarlas, asegúrate de que los tipos de datos sean consistentes.
 
+/*
 -- Obtener tienda del usuario actual
 CREATE OR REPLACE FUNCTION get_user_tienda_id()
 RETURNS UUID AS $$
@@ -70,10 +90,14 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 COMMENT ON FUNCTION is_manager() IS 'Verifica si el usuario es gerente o admin';
+*/
 
 -- ============================================
 -- POLÍTICAS: roles (lectura para todos autenticados)
 -- ============================================
+DROP POLICY IF EXISTS "Usuarios autenticados pueden leer roles" ON public.roles;
+DROP POLICY IF EXISTS "Solo admin puede modificar roles" ON public.roles;
+
 CREATE POLICY "Usuarios autenticados pueden leer roles"
     ON public.roles FOR SELECT
     TO authenticated
@@ -82,8 +106,24 @@ CREATE POLICY "Usuarios autenticados pueden leer roles"
 CREATE POLICY "Solo admin puede modificar roles"
     ON public.roles FOR ALL
     TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre = 'Administrador'
+            AND u.activo = true
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre = 'Administrador'
+            AND u.activo = true
+        )
+    );
 
 -- ============================================
 -- POLÍTICAS: tiendas
@@ -231,6 +271,11 @@ CREATE POLICY "Solo admin puede eliminar proveedores"
 -- ============================================
 -- POLÍTICAS: productos
 -- ============================================
+DROP POLICY IF EXISTS "Todos pueden leer productos activos" ON public.productos;
+DROP POLICY IF EXISTS "Gerentes pueden crear productos" ON public.productos;
+DROP POLICY IF EXISTS "Gerentes pueden actualizar productos" ON public.productos;
+DROP POLICY IF EXISTS "Solo admin puede eliminar productos" ON public.productos;
+
 CREATE POLICY "Todos pueden leer productos activos"
     ON public.productos FOR SELECT
     TO authenticated
@@ -239,17 +284,50 @@ CREATE POLICY "Todos pueden leer productos activos"
 CREATE POLICY "Gerentes pueden crear productos"
     ON public.productos FOR INSERT
     TO authenticated
-    WITH CHECK (is_manager());
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre IN ('Gerente', 'Administrador')
+            AND u.activo = true
+        )
+    );
 
 CREATE POLICY "Gerentes pueden actualizar productos"
     ON public.productos FOR UPDATE
     TO authenticated
-    USING (is_manager());
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre IN ('Gerente', 'Administrador')
+            AND u.activo = true
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre IN ('Gerente', 'Administrador')
+            AND u.activo = true
+        )
+    );
 
 CREATE POLICY "Solo admin puede eliminar productos"
     ON public.productos FOR DELETE
     TO authenticated
-    USING (is_admin());
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.usuarios u
+            JOIN public.roles r ON u.rol_id = r.id
+            WHERE u.auth_user_id = auth.uid()
+            AND r.nombre = 'Administrador'
+            AND u.activo = true
+        )
+    );
 
 -- ============================================
 -- POLÍTICAS: lotes
