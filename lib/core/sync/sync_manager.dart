@@ -265,6 +265,12 @@ class SyncManager {
     }
   }
 
+  // Generar tempSyncId
+  String generateTempSyncId() {
+    final now = DateTime.now();
+    return 'temp_${now.millisecondsSinceEpoch}';
+  }
+
   /// Actualizar estado y notificar
   void _updateStatus(SyncStatus status) {
     _currentStatus = status;
