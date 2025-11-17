@@ -9,12 +9,30 @@ part 'almacen_dao.g.dart';
 class AlmacenDao extends DatabaseAccessor<AppDatabase> with _$AlmacenDaoMixin {
   AlmacenDao(AppDatabase db) : super(db);
 
-  // Obtener todos los almacenes activos
+  // Obtener todos los almacenes
   Future<List<AlmacenTable>> getAllAlmacenes() {
+    return (select(almacenes)
+          ..orderBy([(t) => OrderingTerm.asc(t.nombre)]))
+        .get();
+  }
+
+  // Obtener todos los almacenes activos
+  Future<List<AlmacenTable>> getAlmacenesActivos() {
     return (select(almacenes)
           ..where((tbl) => tbl.activo.equals(true) & tbl.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.asc(t.nombre)]))
         .get();
+  }
+
+  // Obtener el almacén principal por tienda
+  Future<AlmacenTable?> getAlmacenPrincipal(String tiendaId) {
+    return (select(almacenes)
+          ..where((tbl) =>
+              tbl.tiendaId.equals(tiendaId) &
+              tbl.tipo.equals('Principal') &
+              tbl.activo.equals(true) &
+              tbl.deletedAt.isNull()))
+        .getSingleOrNull();
   }
 
   // Obtener almacenes por tienda
@@ -122,4 +140,9 @@ class AlmacenDao extends DatabaseAccessor<AppDatabase> with _$AlmacenDaoMixin {
     ));
     return result > 0;
   }
+
+
+
+
+
 }

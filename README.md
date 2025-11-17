@@ -635,6 +635,18 @@ lib/
 │   │       ├── proveedor_remote_datasource.dart
 │   │       └── sync_remote_datasource.dart
 │   │
+│   ├── mappers/
+│   │   ├── almacen_mapper.dart
+│   │   ├── categoria_mapper.dart
+│   │   ├── inventario_mapper.dart
+│   │   ├── lote_mapper.dart
+│   │   ├── movimiento_mapper.dart
+│   │   ├── producto_mapper.dart
+│   │   ├── proveedor_mapper.dart
+│   │   ├── rol_mapper.dart
+│   │   ├── tienda_mapper.dart
+│   │   ├── usuario_mapper.dart
+│   │   └── unidad_medida_mapper.dart
 │   ├── models/
 │   │   ├── almacen_model.dart
 │   │   ├── categoria_model.dart
@@ -646,7 +658,7 @@ lib/
 │   │   ├── rol_model.dart
 │   │   ├── tienda_model.dart
 │   │   ├── usuario_model.dart
-│   │   └── usuario_medida_model.dart
+│   │   └── unidad_medida_model.dart
 │   │
 │   └── repositories/
 │       ├── auth_repository_impl.dart

@@ -2,12 +2,18 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_management_system/core/sync/sync_manager.dart';
 import 'package:flutter_management_system/core/sync/sync_queue.dart';
 import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
+import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
+import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
+import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
+import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
@@ -225,6 +231,102 @@ Future<void> setupDependencies() async {
       updateProductoUsecase: getIt<UpdateProductoUseCase>(),
       deleteProductoUsecase: getIt<DeleteProductoUsecase>(),
       getProductoByIdUsecase: getIt<GetProductoByIdUsecase>(),
+    ),
+  );
+
+  // ========================================================================
+  // Data sources - Almacenes
+  // ========================================================================
+  getIt.registerLazySingleton<AlmacenRemoteDataSource>(
+    () => AlmacenRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<AlmacenDao>(
+    () => getIt<AppDatabase>().almacenDao,
+  );
+
+  // ============================================================================
+  // Repositories - Almacenes
+  // ============================================================================
+
+  getIt.registerLazySingleton<AlmacenRepository>(
+    () => AlmacenRepositoryImpl(
+      remoteDataSource: getIt<AlmacenRemoteDataSource>(),
+      almacenDao: getIt<AlmacenDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Almacenes
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetAlmacenesUseCase>(
+    () => GetAlmacenesUseCase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenByIdUseCase>(
+    () => GetAlmacenByIdUseCase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenByCodigoUsecase>(
+    () => GetAlmacenByCodigoUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenPrincipalUsecase>(
+    () => GetAlmacenPrincipalUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenesActivosUsecase>(
+    () => GetAlmacenesActivosUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenesByTiendaUsecase>(
+    () => GetAlmacenesByTiendaUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetAlmacenesByTipoUsecase>(
+    () => GetAlmacenesByTipoUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<SearchAlmacenesUsecase>(
+    () => SearchAlmacenesUsecase(almacenRepository: getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<ToggleAlmacenActivoUsecase>(
+    () => ToggleAlmacenActivoUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<CreateAlmacenUsecase>(
+    () => CreateAlmacenUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateAlmacenUsecase>(
+    () => UpdateAlmacenUsecase(getIt<AlmacenRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteAlmacenUsecase>(
+    () => DeleteAlmacenUsecase(getIt<AlmacenRepository>()),
+  );
+
+  // ============================================================================
+  // BLoCs - Almacenes
+  // ============================================================================
+  getIt.registerFactory<AlmacenBloc>(
+    () => AlmacenBloc(
+      getAlmacenesUsecase: getIt<GetAlmacenesUseCase>(),
+      getAlmacenByIdUsecase: getIt<GetAlmacenByIdUseCase>(),
+      createAlmacenUsecase: getIt<CreateAlmacenUsecase>(),
+      updateAlmacenUsecase: getIt<UpdateAlmacenUsecase>(),
+      deleteAlmacenUsecase: getIt<DeleteAlmacenUsecase>(),
+      getAlmacenByCodigoUsecase: getIt<GetAlmacenByCodigoUsecase>(),
+      getAlmacenPrincipalUsecase: getIt<GetAlmacenPrincipalUsecase>(),
+      getAlmacenesActivosUsecase: getIt<GetAlmacenesActivosUsecase>(),
+      getAlmacenesByTiendaUsecase: getIt<GetAlmacenesByTiendaUsecase>(),
+      getAlmacenesByTipoUsecase: getIt<GetAlmacenesByTipoUsecase>(),
+      searchAlmacenesUsecase: getIt<SearchAlmacenesUsecase>(),
+      toggleAlmacenActivoUsecase: getIt<ToggleAlmacenActivoUsecase>(),
     ),
   );
 }

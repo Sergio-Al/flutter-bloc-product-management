@@ -118,7 +118,6 @@ class Almacen extends Equatable {
     );
   }
 
-
   @override
   List<Object?> get props => [
         id,
