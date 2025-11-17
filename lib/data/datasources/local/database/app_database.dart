@@ -298,11 +298,8 @@ class AppDatabase extends _$AppDatabase {
       final remoteCategorias = await categoriaRemote.getCategoriasActivas();
       AppLogger.database('📥 Fetched ${remoteCategorias.length} categorías from Supabase');
       
-      // Clear existing local categorías to avoid UNIQUE constraint conflicts
-      await delete(categorias).go();
-      AppLogger.database('🗑️  Cleared local categorías');
-      
-      // Insert fresh data from remote
+      // Use insertOrReplace to update existing or insert new categorías
+      // This avoids foreign key constraint violations
       for (final categoriaMap in remoteCategorias) {
         await into(categorias).insert(
           CategoriasCompanion.insert(
@@ -314,6 +311,7 @@ class AppDatabase extends _$AppDatabase {
             requiereCertificacion: Value(categoriaMap['requiere_certificacion'] as bool? ?? false),
             activo: Value(categoriaMap['activo'] as bool? ?? true),
           ),
+          mode: InsertMode.insertOrReplace,
         );
       }
       
@@ -343,11 +341,8 @@ class AppDatabase extends _$AppDatabase {
       final remoteUnidades = await unidadRemote.getUnidadesActivas();
       AppLogger.database('📥 Fetched ${remoteUnidades.length} unidades from Supabase');
       
-      // Clear existing local unidades to avoid UNIQUE constraint conflicts
-      await delete(unidadesMedida).go();
-      AppLogger.database('🗑️  Cleared local unidades');
-      
-      // Insert fresh data from remote
+      // Use insertOrReplace to update existing or insert new unidades
+      // This avoids foreign key constraint violations
       for (final unidadMap in remoteUnidades) {
         await into(unidadesMedida).insert(
           UnidadesMedidaCompanion.insert(
@@ -357,6 +352,7 @@ class AppDatabase extends _$AppDatabase {
             tipo: unidadMap['tipo'] as String,
             factorConversion: Value(unidadMap['factor_conversion'] as double? ?? 1.0),
           ),
+          mode: InsertMode.insertOrReplace,
         );
       }
       

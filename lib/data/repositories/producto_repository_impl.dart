@@ -28,7 +28,7 @@ class ProductoRepositoryImpl extends ProductoRepository {
     try {
       // 1. ALWAYS save locally first (works offline)
       final now = DateTime.now();
-      final tempSyncId = 'temp_${now.millisecondsSinceEpoch}';
+      final tempSyncId = syncManager.generateTempSyncId();
 
       AppLogger.info('Creating producto locally: ${producto.nombre}');
 
@@ -61,7 +61,7 @@ class ProductoRepositoryImpl extends ProductoRepository {
         syncId: tempSyncId,
         lastSync: producto.lastSync,
       );
-      
+
       await productoDao.insertProducto(productoTable);
 
       AppLogger.info('Producto created locally with tempSyncId: $tempSyncId');
@@ -160,14 +160,16 @@ class ProductoRepositoryImpl extends ProductoRepository {
       }
     } catch (e) {
       return Left(
-        ServerFailure(message: 'Unexpected error getting producto by codigo: $e'),
+        ServerFailure(
+          message: 'Unexpected error getting producto by codigo: $e',
+        ),
       );
     }
   }
 
   @override
-  Future<Either<Failure, Producto>> getProductoById(String id) async{
-    try{
+  Future<Either<Failure, Producto>> getProductoById(String id) async {
+    try {
       // Attempt to fetch producto by id from dao (local database)
       final productoTable = await productoDao.getProductoById(id);
       if (productoTable != null) {
@@ -217,7 +219,7 @@ class ProductoRepositoryImpl extends ProductoRepository {
       AppLogger.error('Error getting producto by id: $e');
       return Left(
         ServerFailure(message: 'Unexpected error getting producto by id: $e'),
-      ); 
+      );
     }
   }
 
@@ -308,10 +310,12 @@ class ProductoRepositoryImpl extends ProductoRepository {
   }
 
   @override
-  Future<Either<Failure, List<Producto>>> getProductosAlmacenamientoEspecial() async{
+  Future<Either<Failure, List<Producto>>>
+  getProductosAlmacenamientoEspecial() async {
     try {
       // Attempt to fetch productos requiring special storage from dao (local database)
-      final productosMap = await productoDao.getProductosAlmacenamientoEspecial();
+      final productosMap = await productoDao
+          .getProductosAlmacenamientoEspecial();
       final productos = productosMap
           .map(
             (table) => Producto(
@@ -398,7 +402,7 @@ class ProductoRepositoryImpl extends ProductoRepository {
   Future<Either<Failure, Producto>> updateProducto(Producto producto) async {
     try {
       final now = DateTime.now();
-      
+
       // Convert entity to Drift ProductoTable object
       final productoTable = ProductoTable(
         id: producto.id,
@@ -428,7 +432,7 @@ class ProductoRepositoryImpl extends ProductoRepository {
         syncId: producto.syncId,
         lastSync: producto.lastSync,
       );
-      
+
       final updated = await productoDao.updateProducto(productoTable);
 
       AppLogger.info('Producto updated locally: ${producto.id}');
