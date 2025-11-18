@@ -324,11 +324,7 @@ class AppDatabase extends _$AppDatabase {
         '📥 Fetched ${remoteCategorias.length} categorías from Supabase',
       );
 
-      // Clear existing local categorías to avoid UNIQUE constraint conflicts
-      await delete(categorias).go();
-      AppLogger.database('🗑️  Cleared local categorías');
-
-      // Insert fresh data from remote
+      // Use insertOrReplace to sync data without deleting (avoids FK constraint issues)
       for (final categoriaMap in remoteCategorias) {
         await into(categorias).insert(
           CategoriasCompanion.insert(
@@ -344,6 +340,7 @@ class AppDatabase extends _$AppDatabase {
             ),
             activo: Value(categoriaMap['activo'] as bool? ?? true),
           ),
+          mode: InsertMode.insertOrReplace,
         );
       }
 
@@ -379,11 +376,7 @@ class AppDatabase extends _$AppDatabase {
         '📥 Fetched ${remoteUnidades.length} unidades from Supabase',
       );
 
-      // Clear existing local unidades to avoid UNIQUE constraint conflicts
-      await delete(unidadesMedida).go();
-      AppLogger.database('🗑️  Cleared local unidades');
-
-      // Insert fresh data from remote
+      // Use insertOrReplace to sync data without deleting (avoids FK constraint issues)
       for (final unidadMap in remoteUnidades) {
         await into(unidadesMedida).insert(
           UnidadesMedidaCompanion.insert(
@@ -395,6 +388,7 @@ class AppDatabase extends _$AppDatabase {
               unidadMap['factor_conversion'] as double? ?? 1.0,
             ),
           ),
+          mode: InsertMode.insertOrReplace,
         );
       }
 

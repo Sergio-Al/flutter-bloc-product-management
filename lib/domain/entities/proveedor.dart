@@ -12,7 +12,7 @@ class Proveedor extends Equatable {
   final String? direccion;
   final String? ciudad;
   final String? tipoMaterial;
-  final int? diasCredito;
+  final int diasCredito;
   final bool activo;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -28,7 +28,7 @@ class Proveedor extends Equatable {
     this.direccion,
     this.ciudad,
     this.tipoMaterial,
-    this.diasCredito,
+    required this.diasCredito,
     required this.activo,
     required this.createdAt,
     required this.updatedAt,
@@ -42,11 +42,11 @@ class Proveedor extends Equatable {
   bool get isActiveAndNotDeleted => activo && !isDeleted;
 
   /// Check if supplier offers credit
-  bool get offersCredit => diasCredito != null && diasCredito! > 0;
+  bool get offersCredit => diasCredito > 0;
 
   /// Get payment terms description
   String get paymentTerms {
-    if (diasCredito == null || diasCredito! <= 0) {
+    if (diasCredito <= 0) {
       return 'Contado';
     }
     return '$diasCredito días de crédito';
@@ -54,24 +54,44 @@ class Proveedor extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        razonSocial,
-        nit,
-        nombreContacto,
-        telefono,
-        email,
-        direccion,
-        ciudad,
-        tipoMaterial,
-        diasCredito,
-        activo,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      ];
+    id,
+    razonSocial,
+    nit,
+    nombreContacto,
+    telefono,
+    email,
+    direccion,
+    ciudad,
+    tipoMaterial,
+    diasCredito,
+    activo,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
 
   @override
   String toString() {
     return 'Proveedor(id: $id, razonSocial: $razonSocial, nit: $nit, activo: $activo)';
+  }
+
+  // Convert Proveedor to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'razonSocial': razonSocial,
+      'nit': nit,
+      'nombreContacto': nombreContacto,
+      'telefono': telefono,
+      'email': email,
+      'direccion': direccion,
+      'ciudad': ciudad,
+      'tipoMaterial': tipoMaterial,
+      'diasCredito': diasCredito,
+      'activo': activo,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'deletedAt': deletedAt?.toIso8601String(),
+    };
   }
 }

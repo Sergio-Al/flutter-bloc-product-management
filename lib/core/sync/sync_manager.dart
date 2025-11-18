@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_management_system/core/di/sync_constants.dart';
 import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
@@ -28,6 +29,7 @@ class SyncManager {
   final ProductoRemoteDataSource _productoRemote;
   final AlmacenRemoteDataSource _almacenRemote;
   final TiendaRemoteDataSource _tiendaRemote;
+  final ProveedorRemoteDataSource _proveedorRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -45,6 +47,7 @@ class SyncManager {
     required ProductoRemoteDataSource productoRemote,
     required AlmacenRemoteDataSource almacenRemote,
     required TiendaRemoteDataSource tiendaRemote,
+    required ProveedorRemoteDataSource proveedorRemote,
     ConflictResolver? conflictResolver,
   }) : _localDb = localDb,
        _syncQueue = syncQueue,
@@ -52,6 +55,7 @@ class SyncManager {
        _productoRemote = productoRemote,
        _almacenRemote = almacenRemote,
        _tiendaRemote = tiendaRemote,
+       _proveedorRemote = proveedorRemote,
        _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
@@ -160,6 +164,8 @@ class SyncManager {
           return await _syncAlmacen(item);
         case SyncEntityType.tienda:
           return await _syncTienda(item);
+        case SyncEntityType.proveedor:
+          return await _syncProveedor(item);
         // ... otros casos
         default:
           return Left(
@@ -279,6 +285,43 @@ class SyncManager {
     }
   }
 
+  // Sincronización de proveedor
+  Future<Either<Failure, void>> _syncProveedor(SyncItem item) async {
+    try {
+      AppLogger.info('🔄 Proveedor data to sync: ${item.id}');
+
+      // Convert camelCase data to snake_case for Supabase
+      final remoteData = _convertProveedorToRemoteFormat(
+        item.data,
+        isUpdate: item.operation == SyncOperation.update,
+      );
+
+      switch (item.operation) {
+        case SyncOperation.create:
+          // Create on server
+          await _proveedorRemote.createProveedor(remoteData);
+          break;
+
+        case SyncOperation.update:
+          // Update on server
+          await _proveedorRemote.updateProveedor(
+            id: item.entityId,
+            data: remoteData,
+          );
+          break;
+
+        case SyncOperation.delete:
+          // Delete on server (soft delete)
+          await _proveedorRemote.deleteProveedor(item.entityId);
+          break;
+      }
+
+      return const Right(null);
+    } catch (e) {
+      return Left(SyncFailure(message: 'Failed to sync proveedor: $e'));
+    }
+  }
+
   /// Convert camelCase JSON to snake_case for Supabase (Producto)
   Map<String, dynamic> _convertToRemoteFormat(Map<String, dynamic> data) {
     return {
@@ -359,6 +402,32 @@ class SyncManager {
       'horario_atencion': data['horarioAtencion'],
       'activo': data['activo'],
     };
+    // Only include deleted_at if it exists
+    if (data['deletedAt'] != null) {
+      converted['deleted_at'] = data['deletedAt'];
+    }
+    return converted;
+  }
+
+  /// Convert camelCase JSON to snake_case for Supabase (Proveedor)
+  Map<String, dynamic> _convertProveedorToRemoteFormat(
+    Map<String, dynamic> data, {
+    bool isUpdate = false,
+  }) {
+    final converted = <String, dynamic>{
+      'id': data['id'],
+      'razon_social': data['razonSocial'],
+      'nit': data['nit'],
+      'direccion': data['direccion'],
+      'ciudad': data['ciudad'],
+      'telefono': data['telefono'],
+      'email': data['email'],
+      'nombre_contacto': data['nombreContacto'],
+      'tipo_material': data['tipoMaterial'],
+      'dias_credito': data['diasCredito'],
+      'activo': data['activo'],
+    };
+
     // Only include deleted_at if it exists
     if (data['deletedAt'] != null) {
       converted['deleted_at'] = data['deletedAt'];

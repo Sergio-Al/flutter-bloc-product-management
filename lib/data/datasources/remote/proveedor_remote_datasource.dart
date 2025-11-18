@@ -67,7 +67,7 @@ class ProveedorRemoteDataSource extends SupabaseDataSource {
   /// Crea un nuevo proveedor
   Future<Map<String, dynamic>> createProveedor(Map<String, dynamic> data) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Creando proveedor: ${data['razon_social']}');
+      AppLogger.database('Creando proveedor: ${data}');
 
       final response = await SupabaseDataSource.client
           .from(_tableName)

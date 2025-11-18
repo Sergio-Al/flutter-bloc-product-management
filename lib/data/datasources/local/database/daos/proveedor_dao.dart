@@ -8,8 +8,15 @@ part 'proveedor_dao.g.dart';
 class ProveedorDao extends DatabaseAccessor<AppDatabase> with _$ProveedorDaoMixin {
   ProveedorDao(AppDatabase db) : super(db);
 
-  // Obtener todos los proveedores activos
+  // Obtener todos los proveedores 
   Future<List<ProveedorTable>> getAllProveedores() {
+    return (select(proveedores)
+          ..orderBy([(t) => OrderingTerm.asc(t.razonSocial)]))
+        .get();
+  }
+
+  // Obtener todos los proveedores activos
+  Future<List<ProveedorTable>> getAllProveedoresActivos() {
     return (select(proveedores)
           ..where((tbl) => tbl.activo.equals(true) & tbl.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.asc(t.razonSocial)]))

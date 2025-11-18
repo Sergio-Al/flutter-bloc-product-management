@@ -192,6 +192,16 @@ class HomePage extends StatelessWidget {
 
                       _buildActionCard(
                         context,
+                        icon: Icons.contact_page,
+                        title: 'Proveedores',
+                        subtitle: 'Gestionar proveedores',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/proveedores');
+                        },
+                      ),
+
+                      _buildActionCard(
+                        context,
                         icon: Icons.assessment,
                         title: 'Reportes',
                         subtitle: 'Ver estadísticas',

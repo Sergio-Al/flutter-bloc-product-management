@@ -1,6 +1,7 @@
 import 'package:flutter_management_system/core/sync/sync_status.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sync_manager.dart';
@@ -20,6 +21,7 @@ class SyncService {
     ProductoRemoteDataSource productoRemote,
     AlmacenRemoteDataSource almacenRemote,
     TiendaRemoteDataSource tiendaRemote,
+    ProveedorRemoteDataSource proveedorRemote,
   ) {
     final queue = SyncQueue(prefs);
     _syncManager = SyncManager(
@@ -28,7 +30,8 @@ class SyncService {
       networkInfo: networkInfo,
       productoRemote: productoRemote,
       almacenRemote: almacenRemote,
-      tiendaRemote: tiendaRemote
+      tiendaRemote: tiendaRemote,
+      proveedorRemote: proveedorRemote,
     );
   }
 
@@ -39,6 +42,7 @@ class SyncService {
     required ProductoRemoteDataSource productoRemote,
     required AlmacenRemoteDataSource almacenRemote,
     required TiendaRemoteDataSource tiendaRemote,
+    required ProveedorRemoteDataSource proveedorRemote,
   }) async {
     _instance ??= SyncService._internal(
       database,
@@ -47,6 +51,7 @@ class SyncService {
       productoRemote,
       almacenRemote,
       tiendaRemote,
+      proveedorRemote,
     );
     return _instance!;
   }

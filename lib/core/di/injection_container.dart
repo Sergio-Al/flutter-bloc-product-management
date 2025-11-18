@@ -4,22 +4,28 @@ import 'package:flutter_management_system/core/sync/sync_queue.dart';
 import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
+import 'package:flutter_management_system/domain/repositories/proveedor_repository.dart';
 import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/proveedores/proveedores_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/tienda/tienda_usecases.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
@@ -142,7 +148,7 @@ Future<void> setupDependencies() async {
   );
 
   // ============================================================================
-  // Core - Sync System
+  // Core - Database
   // ============================================================================
 
   // Sync Queue (persists pending operations)
@@ -156,6 +162,30 @@ Future<void> setupDependencies() async {
   // Ensure default categories and units exist
   await getIt<AppDatabase>().ensureDefaultsExist();
 
+  // ============================================================================
+  // Data sources - Remote (Must be before SyncManager)
+  // ============================================================================
+
+  getIt.registerLazySingleton<ProductoRemoteDataSource>(
+    () => ProductoRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<AlmacenRemoteDataSource>(
+    () => AlmacenRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<TiendaRemoteDataSource>(
+    () => TiendaRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<ProveedorRemoteDataSource>(
+    () => ProveedorRemoteDataSource(),
+  );
+
+  // ============================================================================
+  // Core - Sync System (Must be after Remote DataSources)
+  // ============================================================================
+
   // Sync Manager (coordinates offline-first sync)
   getIt.registerLazySingleton<SyncManager>(
     () => SyncManager(
@@ -165,17 +195,14 @@ Future<void> setupDependencies() async {
       productoRemote: getIt<ProductoRemoteDataSource>(),
       almacenRemote: getIt<AlmacenRemoteDataSource>(),
       tiendaRemote: getIt<TiendaRemoteDataSource>(),
+      proveedorRemote: getIt<ProveedorRemoteDataSource>(),
       // TODO: Add other remote datasources as they're created
     ),
   );
 
   // ============================================================================
-  // Data sources - Productos
+  // Data sources - Productos (Local)
   // ============================================================================
-
-  getIt.registerLazySingleton<ProductoRemoteDataSource>(
-    () => ProductoRemoteDataSource(),
-  );
 
   getIt.registerLazySingleton<ProductoDao>(
     () => getIt<AppDatabase>().productoDao,
@@ -242,12 +269,9 @@ Future<void> setupDependencies() async {
     ),
   );
 
-  // ========================================================================
-  // Data sources - Almacenes
-  // ========================================================================
-  getIt.registerLazySingleton<AlmacenRemoteDataSource>(
-    () => AlmacenRemoteDataSource(),
-  );
+  // ============================================================================
+  // Data sources - Almacenes (Local)
+  // ============================================================================
 
   getIt.registerLazySingleton<AlmacenDao>(
     () => getIt<AppDatabase>().almacenDao,
@@ -339,12 +363,8 @@ Future<void> setupDependencies() async {
   );
 
   // ============================================================================
-  // Datasources - Tiendas
+  // Data sources - Tiendas (Local)
   // ============================================================================
-
-  getIt.registerLazySingleton<TiendaRemoteDataSource>(
-    () => TiendaRemoteDataSource(),
-  );
 
   getIt.registerLazySingleton<TiendaDao>(() => getIt<AppDatabase>().tiendaDao);
 
@@ -423,6 +443,120 @@ Future<void> setupDependencies() async {
       getTiendasActivasUsecase: getIt<GetTiendasActivasUsecase>(),
       getTiendasByCiudadUsecase: getIt<GetTiendasByCiudadUsecase>(),
       getTiendasByDepartamentoUsecase: getIt<GetTiendasByDepartamentoUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Proveedores (Local)
+  // ============================================================================
+
+  getIt.registerLazySingleton<ProveedorDao>(
+    () => getIt<AppDatabase>().proveedorDao,
+  );
+
+  // ============================================================================
+  // Repositories - Proveedores
+  // ============================================================================
+  getIt.registerLazySingleton<ProveedorRepository>(
+    () => ProveedorRepositoryImpl(
+      remoteDataSource: getIt<ProveedorRemoteDataSource>(),
+      proveedorDao: getIt<ProveedorDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Proveedores
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetProveedoresUsecase>(
+    () => GetProveedoresUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedoresActivosUsecase>(
+    () => GetProveedoresActivosUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedorByIdUsecase>(
+    () => GetProveedorByIdUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedorByNitUsecase>(
+    () => GetProveedorByNitUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<SearchProveedoresUsecase>(
+    () => SearchProveedoresUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedoresByCiudadUsecase>(
+    () => GetProveedoresByCiudadUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedoresByTipoMaterialUsecase>(
+    () => GetProveedoresByTipoMaterialUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetProveedoresConCreditoUsecase>(
+    () => GetProveedoresConCreditoUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateProveedorUsecase>(
+    () => CreateProveedorUsecase(getIt<ProveedorRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateProveedorUsecase>(
+    () => UpdateProveedorUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<DeleteProveedorUsecase>(
+    () => DeleteProveedorUsecase(getIt<ProveedorRepository>()),
+  );
+
+  getIt.registerLazySingleton<ToggleProveedorActivoUsecase>(
+    () => ToggleProveedorActivoUsecase(
+      proveedorRepository: getIt<ProveedorRepository>(),
+    ),
+  );
+
+  // ============================================================================
+  // BLoCs - Proveedores
+  // ============================================================================
+
+  getIt.registerFactory<ProveedorBloc>(
+    () => ProveedorBloc(
+      getProveedores: getIt<GetProveedoresUsecase>(),
+      getProveedoresActivos: getIt<GetProveedoresActivosUsecase>(),
+      getProveedorById: getIt<GetProveedorByIdUsecase>(),
+      getProveedorByNit: getIt<GetProveedorByNitUsecase>(),
+      searchProveedores: getIt<SearchProveedoresUsecase>(),
+      getProveedoresByCiudad: getIt<GetProveedoresByCiudadUsecase>(),
+      getProveedoresByTipoMaterial:
+          getIt<GetProveedoresByTipoMaterialUsecase>(),
+      getProveedoresConCredito: getIt<GetProveedoresConCreditoUsecase>(),
+      createProveedor: getIt<CreateProveedorUsecase>(),
+      updateProveedor: getIt<UpdateProveedorUsecase>(),
+      deleteProveedor: getIt<DeleteProveedorUsecase>(),
+      toggleProveedorActivo: getIt<ToggleProveedorActivoUsecase>(),
     ),
   );
 }
