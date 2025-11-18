@@ -8,8 +8,15 @@ part 'tienda_dao.g.dart';
 class TiendaDao extends DatabaseAccessor<AppDatabase> with _$TiendaDaoMixin {
   TiendaDao(AppDatabase db) : super(db);
 
-  // Obtener todas las tiendas activas
+  // Obtener todas las tiendas 
   Future<List<TiendaTable>> getAllTiendas() {
+    return (select(tiendas)
+          ..orderBy([(t) => OrderingTerm.asc(t.nombre)]))
+        .get();
+  }
+
+  // Obtener todas las tiendas activas
+  Future<List<TiendaTable>> getTiendasActivas() {
     return (select(tiendas)
           ..where((tbl) => tbl.activo.equals(true) & tbl.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.asc(t.nombre)]))

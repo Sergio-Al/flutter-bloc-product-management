@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_management_system/core/di/sync_constants.dart';
 import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
 import 'sync_status.dart';
@@ -15,17 +16,18 @@ import '../../data/datasources/remote/producto_remote_datasource.dart';
 import '../../domain/entities/producto.dart';
 
 /// SyncManager - Coordina la sincronización offline-first
-/// 
+///
 /// Manages bidirectional sync between local database and remote server
 class SyncManager {
   final AppDatabase _localDb;
   final SyncQueue _syncQueue;
   final NetworkInfo _networkInfo;
   final ConflictResolver _conflictResolver;
-  
+
   // Remote datasources
   final ProductoRemoteDataSource _productoRemote;
   final AlmacenRemoteDataSource _almacenRemote;
+  final TiendaRemoteDataSource _tiendaRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -42,26 +44,28 @@ class SyncManager {
     required NetworkInfo networkInfo,
     required ProductoRemoteDataSource productoRemote,
     required AlmacenRemoteDataSource almacenRemote,
+    required TiendaRemoteDataSource tiendaRemote,
     ConflictResolver? conflictResolver,
-  })  : _localDb = localDb,
-        _syncQueue = syncQueue,
-        _networkInfo = networkInfo,
-        _productoRemote = productoRemote,
-        _almacenRemote = almacenRemote,
-        _conflictResolver = conflictResolver ?? ConflictResolver() {
+  }) : _localDb = localDb,
+       _syncQueue = syncQueue,
+       _networkInfo = networkInfo,
+       _productoRemote = productoRemote,
+       _almacenRemote = almacenRemote,
+       _tiendaRemote = tiendaRemote,
+       _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
 
   void _init() {
     // Escuchar cambios de conectividad
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-      (result) {
-        if (result != ConnectivityResult.none) {
-          // Cuando hay conexión, sincronizar automáticamente
-          syncAll();
-        }
-      },
-    );
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
+      if (result != ConnectivityResult.none) {
+        // Cuando hay conexión, sincronizar automáticamente
+        syncAll();
+      }
+    });
 
     // Sincronización periódica cada 15 minutos
     _periodicSyncTimer = Timer.periodic(
@@ -87,8 +91,10 @@ class SyncManager {
       int successCount = 0;
       int errorCount = 0;
       final conflicts = <SyncConflict>[];
-      
-      AppLogger.info('Iniciando sincronización de ${pendingItems.length} items pendientes');
+
+      AppLogger.info(
+        'Iniciando sincronización de ${pendingItems.length} items pendientes',
+      );
 
       for (final item in pendingItems) {
         final result = await _syncItem(item);
@@ -114,19 +120,19 @@ class SyncManager {
 
       if (conflicts.isNotEmpty) {
         _updateStatus(SyncStatus.conflict(conflictItems: conflicts.length));
-        return Left(ConflictFailure(
-          message: 'Se encontraron ${conflicts.length} conflictos',
-          conflict: conflicts.first,
-        ));
+        return Left(
+          ConflictFailure(
+            message: 'Se encontraron ${conflicts.length} conflictos',
+            conflict: conflicts.first,
+          ),
+        );
       }
 
       if (errorCount > 0) {
-        _updateStatus(SyncStatus.error(
-          'Sincronización completada con $errorCount errores',
-        ));
-        return Left(SyncFailure(
-          message: 'Algunos items no se sincronizaron',
-        ));
+        _updateStatus(
+          SyncStatus.error('Sincronización completada con $errorCount errores'),
+        );
+        return Left(SyncFailure(message: 'Algunos items no se sincronizaron'));
       }
 
       _updateStatus(SyncStatus.success());
@@ -152,11 +158,15 @@ class SyncManager {
           return await _syncMovimiento(item);
         case SyncEntityType.almacen:
           return await _syncAlmacen(item);
+        case SyncEntityType.tienda:
+          return await _syncTienda(item);
         // ... otros casos
         default:
-          return Left(SyncFailure(
-            message: 'Tipo de entidad no soportado: ${item.entityType}',
-          ));
+          return Left(
+            SyncFailure(
+              message: 'Tipo de entidad no soportado: ${item.entityType}',
+            ),
+          );
       }
     } catch (e) {
       return Left(SyncFailure(message: e.toString()));
@@ -168,12 +178,12 @@ class SyncManager {
     try {
       // Convert camelCase data to snake_case for Supabase
       final remoteData = _convertToRemoteFormat(item.data);
-      
+
       switch (item.operation) {
         case SyncOperation.create:
           // Create on server
           await _productoRemote.createProducto(remoteData);
-          
+
           // Note: Server returns producto with generated ID/timestamps
           // Local already has the data, no need to update again
           break;
@@ -203,8 +213,11 @@ class SyncManager {
     try {
       AppLogger.info('🔄 Almacen data to sync: ${item.id}');
       // Convert camelCase data to snake_case for Supabase
-      final remoteData = _convertAlmacenToRemoteFormat(item.data, isUpdate: item.operation == SyncOperation.update);
-      
+      final remoteData = _convertAlmacenToRemoteFormat(
+        item.data,
+        isUpdate: item.operation == SyncOperation.update,
+      );
+
       switch (item.operation) {
         case SyncOperation.create:
           // Create on server
@@ -213,7 +226,7 @@ class SyncManager {
 
         case SyncOperation.update:
           // Update on server
-          AppLogger.info( 'Synchronizing almacen update: $remoteData' );
+          AppLogger.info('Synchronizing almacen update: $remoteData');
           await _almacenRemote.updateAlmacen(
             id: item.entityId,
             data: remoteData,
@@ -232,6 +245,39 @@ class SyncManager {
     }
   }
 
+  // Sincronización de tienda
+  Future<Either<Failure, void>> _syncTienda(SyncItem item) async {
+    try {
+      AppLogger.info('🔄 Tienda data to sync: ${item.id}');
+      // Convert camelCase data to snake_case for Supabase
+      final remoteData = _convertTiendaToRemoteFormat(
+        item.data,
+        isUpdate: item.operation == SyncOperation.update,
+      );
+
+      switch (item.operation) {
+        case SyncOperation.create:
+          // Create on server
+          AppLogger.info('Synchronizing tienda create: $remoteData');
+          await _tiendaRemote.createTienda(remoteData);
+          break;
+
+        case SyncOperation.update:
+          // Update on server
+          AppLogger.info('Synchronizing tienda update: $remoteData');
+          await _tiendaRemote.updateTienda(id: item.entityId, data: remoteData);
+          break;
+
+        case SyncOperation.delete:
+          // Delete on server (soft delete)
+          await _tiendaRemote.deleteTienda(item.entityId);
+          break;
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(SyncFailure(message: 'Failed to sync tienda: $e'));
+    }
+  }
 
   /// Convert camelCase JSON to snake_case for Supabase (Producto)
   Map<String, dynamic> _convertToRemoteFormat(Map<String, dynamic> data) {
@@ -261,13 +307,16 @@ class SyncManager {
       'updated_at': data['updatedAt'],
       'deleted_at': data['deletedAt'],
       // ❌ Don't send sync_id to Supabase - it's local-only
-      // 'sync_id': data['syncId'], 
+      // 'sync_id': data['syncId'],
       'last_sync': data['lastSync'],
     };
   }
 
   /// Convert camelCase JSON to snake_case for Supabase (Almacen)
-  Map<String, dynamic> _convertAlmacenToRemoteFormat(Map<String, dynamic> data, {bool isUpdate = false}) {
+  Map<String, dynamic> _convertAlmacenToRemoteFormat(
+    Map<String, dynamic> data, {
+    bool isUpdate = false,
+  }) {
     final converted = <String, dynamic>{
       'nombre': data['nombre'],
       'codigo': data['codigo'],
@@ -277,18 +326,43 @@ class SyncManager {
       'area_m2': data['areaM2'],
       'activo': data['activo'],
     };
-    
+
     // Only include tienda_id for CREATE, not UPDATE
     if (!isUpdate && data['tiendaId'] != null) {
       converted['tienda_id'] = data['tiendaId'];
     }
-    
+
     // Only include deleted_at if it exists
     if (data['deletedAt'] != null) {
       converted['deleted_at'] = data['deletedAt'];
     }
-    
-    AppLogger.database('🔄 Almacen data to sync (isUpdate: $isUpdate): $converted');
+
+    AppLogger.database(
+      '🔄 Almacen data to sync (isUpdate: $isUpdate): $converted',
+    );
+    return converted;
+  }
+
+  /// Convert camelCase JSON to snake_case for Supabase (Tienda)
+  Map<String, dynamic> _convertTiendaToRemoteFormat(
+    Map<String, dynamic> data, {
+    bool isUpdate = false,
+  }) {
+    final converted = <String, dynamic>{
+      'id': data['id'],
+      'nombre': data['nombre'],
+      'codigo': data['codigo'],
+      'direccion': data['direccion'],
+      'ciudad': data['ciudad'],
+      'departamento': data['departamento'],
+      'telefono': data['telefono'],
+      'horario_atencion': data['horarioAtencion'],
+      'activo': data['activo'],
+    };
+    // Only include deleted_at if it exists
+    if (data['deletedAt'] != null) {
+      converted['deleted_at'] = data['deletedAt'];
+    }
     return converted;
   }
 

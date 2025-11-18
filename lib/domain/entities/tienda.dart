@@ -66,4 +66,22 @@ class Tienda extends Equatable {
   String toString() {
     return 'Tienda(id: $id, nombre: $nombre, codigo: $codigo, activo: $activo)';
   }
+
+  // Convert Tienda to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre': nombre,
+      'codigo': codigo,
+      'direccion': direccion,
+      'ciudad': ciudad,
+      'departamento': departamento,
+      'telefono': telefono,
+      'horarioAtencion': horarioAtencion,
+      'activo': activo,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'deletedAt': deletedAt?.toIso8601String(),
+    };
+  }
 }

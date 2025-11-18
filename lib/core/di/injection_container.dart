@@ -4,17 +4,23 @@ import 'package:flutter_management_system/core/sync/sync_queue.dart';
 import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
+import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/tienda/tienda_usecases.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -158,6 +164,7 @@ Future<void> setupDependencies() async {
       networkInfo: getIt<NetworkInfo>(),
       productoRemote: getIt<ProductoRemoteDataSource>(),
       almacenRemote: getIt<AlmacenRemoteDataSource>(),
+      tiendaRemote: getIt<TiendaRemoteDataSource>(),
       // TODO: Add other remote datasources as they're created
     ),
   );
@@ -328,6 +335,94 @@ Future<void> setupDependencies() async {
       getAlmacenesByTipoUsecase: getIt<GetAlmacenesByTipoUsecase>(),
       searchAlmacenesUsecase: getIt<SearchAlmacenesUsecase>(),
       toggleAlmacenActivoUsecase: getIt<ToggleAlmacenActivoUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Datasources - Tiendas
+  // ============================================================================
+
+  getIt.registerLazySingleton<TiendaRemoteDataSource>(
+    () => TiendaRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<TiendaDao>(() => getIt<AppDatabase>().tiendaDao);
+
+  // ============================================================================
+  // Repositories - Tiendas
+  // ============================================================================
+
+  getIt.registerLazySingleton<TiendaRepository>(
+    () => TiendaRepositoryImpl(
+      remoteDataSource: getIt<TiendaRemoteDataSource>(),
+      tiendaDao: getIt<TiendaDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Tiendas
+  // ============================================================================
+  getIt.registerLazySingleton<GetTiendasUsecase>(
+    () => GetTiendasUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<ToggleTiendaActivaUsecase>(
+    () =>
+        ToggleTiendaActivaUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<CreateTiendaUsecase>(
+    () => CreateTiendaUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateTiendaUsecase>(
+    () => UpdateTiendaUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteTiendaUsecase>(
+    () => DeleteTiendaUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetTiendaByCodigoUsecase>(
+    () => GetTiendaByCodigoUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetTiendaByIdUsecase>(
+    () => GetTiendaByIdUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetTiendasActivasUsecase>(
+    () => GetTiendasActivasUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetTiendasByCiudadUsecase>(
+    () =>
+        GetTiendasByCiudadUsecase(tiendaRepository: getIt<TiendaRepository>()),
+  );
+  getIt.registerLazySingleton<GetTiendasByDepartamentoUsecase>(
+    () => GetTiendasByDepartamentoUsecase(
+      tiendaRepository: getIt<TiendaRepository>(),
+    ),
+  );
+
+  // ============================================================================
+  // BLoCs - Tiendas
+  // ============================================================================
+
+  getIt.registerFactory<TiendaBloc>(
+    () => TiendaBloc(
+      getTiendasUsecase: getIt<GetTiendasUsecase>(),
+      toggleTiendaActivaUsecase: getIt<ToggleTiendaActivaUsecase>(),
+      createTiendaUsecase: getIt<CreateTiendaUsecase>(),
+      updateTiendaUsecase: getIt<UpdateTiendaUsecase>(),
+      deleteTiendaUsecase: getIt<DeleteTiendaUsecase>(),
+      getTiendaByCodigoUsecase: getIt<GetTiendaByCodigoUsecase>(),
+      getTiendaByIdUsecase: getIt<GetTiendaByIdUsecase>(),
+      getTiendasActivasUsecase: getIt<GetTiendasActivasUsecase>(),
+      getTiendasByCiudadUsecase: getIt<GetTiendasByCiudadUsecase>(),
+      getTiendasByDepartamentoUsecase: getIt<GetTiendasByDepartamentoUsecase>(),
     ),
   );
 }

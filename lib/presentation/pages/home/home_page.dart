@@ -182,6 +182,16 @@ class HomePage extends StatelessWidget {
                       ),
                       _buildActionCard(
                         context,
+                        icon: Icons.store,
+                        title: 'Tiendas',
+                        subtitle: 'Gestionar tiendas',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/tiendas');
+                        },
+                      ),
+
+                      _buildActionCard(
+                        context,
                         icon: Icons.assessment,
                         title: 'Reportes',
                         subtitle: 'Ver estadísticas',

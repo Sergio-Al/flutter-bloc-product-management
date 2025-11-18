@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/auth/auth_event.dart';
 import 'package:flutter_management_system/presentation/pages/almacenes/almacenes_list_page.dart';
+import 'package:flutter_management_system/presentation/pages/tiendas/tiendas_list_page.dart';
 
 import 'core/config/env_config.dart';
 import 'core/config/supabase_config.dart';
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
           '/home': (context) => const HomePage(),
           '/productos': (context) => const ProductosListPage(),
           '/almacenes': (context) => const AlmacenesListPage(),
+          '/tiendas': (context) => const TiendasListPage(),
         },
       ),
     );

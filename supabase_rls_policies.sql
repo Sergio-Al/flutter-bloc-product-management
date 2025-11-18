@@ -128,26 +128,16 @@ CREATE POLICY "Solo admin puede modificar roles"
 -- ============================================
 -- POLÍTICAS: tiendas
 -- ============================================
-CREATE POLICY "Usuarios autenticados pueden ver tiendas activas"
-    ON public.tiendas FOR SELECT
-    TO authenticated
-    USING (activo = true AND deleted_at IS NULL);
+DROP POLICY IF EXISTS "Usuarios autenticados pueden ver tiendas activas" ON public.tiendas;
+DROP POLICY IF EXISTS "Solo admin puede crear tiendas" ON public.tiendas;
+DROP POLICY IF EXISTS "Solo admin puede actualizar tiendas" ON public.tiendas;
+DROP POLICY IF EXISTS "Solo admin puede eliminar tiendas" ON public.tiendas;
 
-CREATE POLICY "Solo admin puede crear tiendas"
-    ON public.tiendas FOR INSERT
-    TO authenticated
-    WITH CHECK (is_admin());
-
-CREATE POLICY "Solo admin puede actualizar tiendas"
-    ON public.tiendas FOR UPDATE
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
-CREATE POLICY "Solo admin puede eliminar tiendas"
-    ON public.tiendas FOR DELETE
-    TO authenticated
-    USING (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.tiendas FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.tiendas FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.tiendas FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_delete" ON public.tiendas FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: usuarios
