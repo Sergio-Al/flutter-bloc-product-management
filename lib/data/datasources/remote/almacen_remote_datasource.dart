@@ -62,6 +62,7 @@ class AlmacenRemoteDataSource extends SupabaseDataSource {
   Future<Map<String, dynamic>> createAlmacen(Map<String, dynamic> data) async {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando almacén: ${data['nombre']}');
+      AppLogger.database('📤 Data being sent to Supabase: $data');
 
       final response = await SupabaseDataSource.client
           .from(_tableName)
@@ -80,17 +81,35 @@ class AlmacenRemoteDataSource extends SupabaseDataSource {
     required Map<String, dynamic> data,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Actualizando almacén: $id');
+      try {
+        AppLogger.database('Actualizando almacén con ID: $id');
+        AppLogger.database('Data a actualizar: $data');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+        // First check if the almacén exists
+        final existing = await SupabaseDataSource.client
+            .from(_tableName)
+            .select('id')
+            .eq('id', id)
+            .maybeSingle();
 
-      AppLogger.database('✅ Almacén actualizado');
-      return response;
+        if (existing == null) {
+          AppLogger.error('❌ Almacén $id no existe en Supabase. Debe ser creado primero.');
+          throw Exception('Almacén no encontrado en Supabase. ID: $id');
+        }
+
+        final response = await SupabaseDataSource.client
+            .from(_tableName)
+            .update(data)
+            .eq('id', id)
+            .select()
+            .single();
+
+        AppLogger.database('✅ Almacén actualizado: ${response['id']}');
+        return response;
+      } catch (e) {
+        AppLogger.error('Error updating almacen in datasource: $e');
+        rethrow;
+      }
     });
   }
 

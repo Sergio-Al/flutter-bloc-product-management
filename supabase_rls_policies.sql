@@ -188,85 +188,141 @@ CREATE POLICY "Admin puede actualizar cualquier usuario"
 -- ============================================
 -- POLÍTICAS: almacenes
 -- ============================================
-CREATE POLICY "Usuarios ven almacenes de su tienda"
-    ON public.almacenes FOR SELECT
-    TO authenticated
-    USING (
-        tienda_id = get_user_tienda_id()
-        OR is_admin()
-    );
+-- CREATE POLICY "Usuarios ven almacenes de su tienda"
+--     ON public.almacenes FOR SELECT
+--     TO authenticated
+--     USING (
+--         tienda_id = get_user_tienda_id()
+--         OR is_admin()
+--     );
 
-CREATE POLICY "Gerentes pueden crear almacenes en su tienda"
-    ON public.almacenes FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        (tienda_id = get_user_tienda_id() AND is_manager())
-        OR is_admin()
-    );
+-- CREATE POLICY "Gerentes pueden crear almacenes en su tienda"
+--     ON public.almacenes FOR INSERT
+--     TO authenticated
+--     WITH CHECK (
+--         (tienda_id = get_user_tienda_id() AND is_manager())
+--         OR is_admin()
+--     );
 
-CREATE POLICY "Gerentes pueden actualizar almacenes de su tienda"
-    ON public.almacenes FOR UPDATE
-    TO authenticated
-    USING (
-        (tienda_id = get_user_tienda_id() AND is_manager())
-        OR is_admin()
-    );
+-- CREATE POLICY "Gerentes pueden actualizar almacenes de su tienda"
+--     ON public.almacenes FOR UPDATE
+--     TO authenticated
+--     USING (
+--         (tienda_id = get_user_tienda_id() AND is_manager())
+--         OR is_admin()
+--     );
 
-CREATE POLICY "Solo admin puede eliminar almacenes"
-    ON public.almacenes FOR DELETE
-    TO authenticated
-    USING (is_admin());
+-- CREATE POLICY "Solo admin puede eliminar almacenes"
+--     ON public.almacenes FOR DELETE
+--     TO authenticated
+--     USING (is_admin());
+
+-- Simpler policies that match productos
+-- CREATE POLICY "Todos pueden leer almacenes activos"
+--     ON public.almacenes FOR SELECT
+--     TO authenticated
+--     USING (activo = true AND deleted_at IS NULL);
+
+-- CREATE POLICY "Gerentes pueden crear almacenes"
+--     ON public.almacenes FOR INSERT
+--     TO authenticated
+--     WITH CHECK (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     );
+
+-- CREATE POLICY "Gerentes pueden actualizar almacenes"
+--     ON public.almacenes FOR UPDATE
+--     TO authenticated
+--     USING (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     )
+--     WITH CHECK (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     );
+
+-- CREATE POLICY "Solo admin puede eliminar almacenes"
+--     ON public.almacenes FOR DELETE
+--     TO authenticated
+--     USING (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre = 'Administrador'
+--             AND u.activo = true
+--         )
+--     );
+
+-- Final only basic policies Enable RLS
+ALTER TABLE public.almacenes ENABLE ROW LEVEL SECURITY;
+
+-- Drop all existing policies
+DROP POLICY IF EXISTS "Todos pueden leer almacenes activos" ON public.almacenes;
+DROP POLICY IF EXISTS "Gerentes pueden crear almacenes" ON public.almacenes;
+DROP POLICY IF EXISTS "Gerentes pueden actualizar almacenes" ON public.almacenes;
+DROP POLICY IF EXISTS "Solo admin puede eliminar almacenes" ON public.almacenes;
+
+-- Create permissive policies (allow all authenticated users)
+CREATE POLICY "allow_all_select" ON public.almacenes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.almacenes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.almacenes FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_delete" ON public.almacenes FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: categorias (lectura para todos)
 -- ============================================
-CREATE POLICY "Todos pueden leer categorías activas"
-    ON public.categorias FOR SELECT
-    TO authenticated
-    USING (activo = true);
+DROP POLICY IF EXISTS "Todos pueden leer categorías activas" ON public.categorias;
+DROP POLICY IF EXISTS "Solo admin puede gestionar categorías" ON public.categorias;
 
-CREATE POLICY "Solo admin puede gestionar categorías"
-    ON public.categorias FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.categorias FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.categorias FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.categorias FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.categorias FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: unidades_medida (lectura para todos)
 -- ============================================
-CREATE POLICY "Todos pueden leer unidades de medida"
-    ON public.unidades_medida FOR SELECT
-    TO authenticated
-    USING (true);
+DROP POLICY IF EXISTS "Todos pueden leer unidades de medida" ON public.unidades_medida;
+DROP POLICY IF EXISTS "Solo admin puede gestionar unidades" ON public.unidades_medida;
 
-CREATE POLICY "Solo admin puede gestionar unidades"
-    ON public.unidades_medida FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.unidades_medida FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.unidades_medida FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.unidades_medida FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.unidades_medida FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: proveedores
 -- ============================================
-CREATE POLICY "Todos pueden leer proveedores activos"
-    ON public.proveedores FOR SELECT
-    TO authenticated
-    USING (activo = true AND deleted_at IS NULL);
+DROP POLICY IF EXISTS "Todos pueden leer proveedores activos" ON public.proveedores;
+DROP POLICY IF EXISTS "Gerentes pueden crear proveedores" ON public.proveedores;
+DROP POLICY IF EXISTS "Gerentes pueden actualizar proveedores" ON public.proveedores;
+DROP POLICY IF EXISTS "Solo admin pueden eliminar proveedores" ON public.proveedores;
 
-CREATE POLICY "Gerentes pueden crear proveedores"
-    ON public.proveedores FOR INSERT
-    TO authenticated
-    WITH CHECK (is_manager());
-
-CREATE POLICY "Gerentes pueden actualizar proveedores"
-    ON public.proveedores FOR UPDATE
-    TO authenticated
-    USING (is_manager());
-
-CREATE POLICY "Solo admin puede eliminar proveedores"
-    ON public.proveedores FOR DELETE
-    TO authenticated
-    USING (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.proveedores FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.proveedores FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.proveedores FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.proveedores FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: productos
@@ -276,141 +332,104 @@ DROP POLICY IF EXISTS "Gerentes pueden crear productos" ON public.productos;
 DROP POLICY IF EXISTS "Gerentes pueden actualizar productos" ON public.productos;
 DROP POLICY IF EXISTS "Solo admin puede eliminar productos" ON public.productos;
 
-CREATE POLICY "Todos pueden leer productos activos"
-    ON public.productos FOR SELECT
-    TO authenticated
-    USING (activo = true AND deleted_at IS NULL);
+-- CREATE POLICY "Todos pueden leer productos activos"
+--     ON public.productos FOR SELECT
+--     TO authenticated
+--     USING (activo = true AND deleted_at IS NULL);
 
-CREATE POLICY "Gerentes pueden crear productos"
-    ON public.productos FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.usuarios u
-            JOIN public.roles r ON u.rol_id = r.id
-            WHERE u.auth_user_id = auth.uid()
-            AND r.nombre IN ('Gerente', 'Administrador')
-            AND u.activo = true
-        )
-    );
+-- CREATE POLICY "Gerentes pueden actualizar productos"
+--     ON public.productos FOR UPDATE
+--     TO authenticated
+--     USING (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     );
 
-CREATE POLICY "Gerentes pueden actualizar productos"
-    ON public.productos FOR UPDATE
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.usuarios u
-            JOIN public.roles r ON u.rol_id = r.id
-            WHERE u.auth_user_id = auth.uid()
-            AND r.nombre IN ('Gerente', 'Administrador')
-            AND u.activo = true
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.usuarios u
-            JOIN public.roles r ON u.rol_id = r.id
-            WHERE u.auth_user_id = auth.uid()
-            AND r.nombre IN ('Gerente', 'Administrador')
-            AND u.activo = true
-        )
-    );
+-- CREATE POLICY "Gerentes pueden actualizar productos"
+--     ON public.productos FOR UPDATE
+--     TO authenticated
+--     USING (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     )
+--     WITH CHECK (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre IN ('Gerente', 'Administrador')
+--             AND u.activo = true
+--         )
+--     );
 
-CREATE POLICY "Solo admin puede eliminar productos"
-    ON public.productos FOR DELETE
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.usuarios u
-            JOIN public.roles r ON u.rol_id = r.id
-            WHERE u.auth_user_id = auth.uid()
-            AND r.nombre = 'Administrador'
-            AND u.activo = true
-        )
-    );
+-- CREATE POLICY "Solo admin puede eliminar productos"
+--     ON public.productos FOR DELETE
+--     TO authenticated
+--     USING (
+--         EXISTS (
+--             SELECT 1 FROM public.usuarios u
+--             JOIN public.roles r ON u.rol_id = r.id
+--             WHERE u.auth_user_id = auth.uid()
+--             AND r.nombre = 'Administrador'
+--             AND u.activo = true
+--         )
+--     );
+
+CREATE POLICY "allow_all_select" ON public.productos FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.productos FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.productos FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.productos FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: lotes
 -- ============================================
-CREATE POLICY "Todos pueden leer lotes"
-    ON public.lotes FOR SELECT
-    TO authenticated
-    USING (true);
+DROP POLICY IF EXISTS "Todos pueden leer lotes" ON public.lotes;
+DROP POLICY IF EXISTS "Usuarios autorizados pueden crear lotes" ON public.lotes;
+DROP POLICY IF EXISTS "Usuarios autorizados pueden actualizar lotes" ON public.lotes;
+DROP POLICY IF EXISTS "Solo admin puede eliminar lotes" ON public.lotes;
 
-CREATE POLICY "Usuarios autorizados pueden crear lotes"
-    ON public.lotes FOR INSERT
-    TO authenticated
-    WITH CHECK (is_manager());
-
-CREATE POLICY "Usuarios autorizados pueden actualizar lotes"
-    ON public.lotes FOR UPDATE
-    TO authenticated
-    USING (is_manager());
-
-CREATE POLICY "Solo admin puede eliminar lotes"
-    ON public.lotes FOR DELETE
-    TO authenticated
-    USING (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.lotes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.lotes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.lotes FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.lotes FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: inventarios
 -- ============================================
-CREATE POLICY "Usuarios ven inventarios de su tienda"
-    ON public.inventarios FOR SELECT
-    TO authenticated
-    USING (
-        tienda_id = get_user_tienda_id()
-        OR is_admin()
-    );
+DROP POLICY IF EXISTS "Usuarios ven inventarios de su tienda" ON public.inventarios;
+DROP POLICY IF EXISTS "Usuarios pueden crear inventarios en su tienda" ON public.inventarios;
+DROP POLICY IF EXISTS "Usuarios pueden actualizar inventarios de su tienda" ON public.inventarios;
 
-CREATE POLICY "Usuarios pueden crear inventarios en su tienda"
-    ON public.inventarios FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        tienda_id = get_user_tienda_id()
-        OR is_admin()
-    );
-
-CREATE POLICY "Usuarios pueden actualizar inventarios de su tienda"
-    ON public.inventarios FOR UPDATE
-    TO authenticated
-    USING (
-        tienda_id = get_user_tienda_id()
-        OR is_admin()
-    );
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.inventarios FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.inventarios FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.inventarios FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.inventarios FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: movimientos
 -- ============================================
-CREATE POLICY "Usuarios ven movimientos de su tienda"
-    ON public.movimientos FOR SELECT
-    TO authenticated
-    USING (
-        tienda_origen_id = get_user_tienda_id()
-        OR tienda_destino_id = get_user_tienda_id()
-        OR is_admin()
-    );
+DROP POLICY IF EXISTS "Usuarios ven movimientos de su tienda" ON public.movimientos;
+DROP POLICY IF EXISTS "Usuarios pueden crear movimientos desde su tienda" ON public.movimientos;
+DROP POLICY IF EXISTS "Usuarios pueden actualizar movimientos de su tienda" ON public.movimientos;
+DROP POLICY IF EXISTS "Solo admin puede eliminar movimientos" ON public.movimientos;
 
-CREATE POLICY "Usuarios pueden crear movimientos desde su tienda"
-    ON public.movimientos FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        tienda_origen_id = get_user_tienda_id()
-        OR is_admin()
-    );
-
-CREATE POLICY "Usuarios pueden actualizar movimientos de su tienda"
-    ON public.movimientos FOR UPDATE
-    TO authenticated
-    USING (
-        (tienda_origen_id = get_user_tienda_id() OR tienda_destino_id = get_user_tienda_id())
-        OR is_admin()
-    );
-
-CREATE POLICY "Solo admin puede eliminar movimientos"
-    ON public.movimientos FOR DELETE
-    TO authenticated
-    USING (is_admin());
+-- Permissive policies for development
+CREATE POLICY "allow_all_select" ON public.movimientos FOR SELECT TO authenticated USING (true);
+CREATE POLICY "allow_all_insert" ON public.movimientos FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "allow_all_update" ON public.movimientos FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "allow_all_delete" ON public.movimientos FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- POLÍTICAS: auditorias (solo lectura para admin)

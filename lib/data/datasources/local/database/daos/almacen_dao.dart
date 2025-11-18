@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import '../app_database.dart';
 import '../tables/almacenes_table.dart';
 import '../tables/tiendas_table.dart';
@@ -87,6 +88,7 @@ class AlmacenDao extends DatabaseAccessor<AppDatabase> with _$AlmacenDaoMixin {
 
   // Insertar almacén
   Future<int> insertAlmacen(AlmacenTable almacen) {
+    AppLogger.info('Inserting almacen tienda id: ${almacen.tiendaId}');
     return into(almacenes).insert(
       AlmacenesCompanion.insert(
         id: almacen.id,

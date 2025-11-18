@@ -89,7 +89,7 @@ class AppDatabase extends _$AppDatabase {
       beforeOpen: (details) async {
         // Habilitar foreign keys
         await customStatement('PRAGMA foreign_keys = ON');
-        
+
         // Configurar para mejor performance
         await customStatement('PRAGMA journal_mode = WAL');
         await customStatement('PRAGMA synchronous = NORMAL');
@@ -113,7 +113,8 @@ class AppDatabase extends _$AppDatabase {
         id: 'gerente-role-id',
         nombre: 'Gerente',
         descripcion: const Value('Gestión de tienda y reportes'),
-        permisos: '{"inventarios": true, "movimientos": true, "reportes": true}',
+        permisos:
+            '{"inventarios": true, "movimientos": true, "reportes": true}',
       ),
       RolesCompanion.insert(
         id: 'almacenero-role-id',
@@ -193,7 +194,9 @@ class AppDatabase extends _$AppDatabase {
     ];
 
     for (final unidad in unidadesDefault) {
-      await into(unidadesMedida).insert(unidad, mode: InsertMode.insertOrIgnore);
+      await into(
+        unidadesMedida,
+      ).insert(unidad, mode: InsertMode.insertOrIgnore);
     }
 
     // Insertar categorías por defecto
@@ -202,7 +205,9 @@ class AppDatabase extends _$AppDatabase {
         id: 'b0e2f135-6f39-4b19-af25-f534bc1d2346',
         nombre: 'Sin Categoría',
         codigo: 'GEN',
-        descripcion: const Value('Categoría general para productos sin clasificar'),
+        descripcion: const Value(
+          'Categoría general para productos sin clasificar',
+        ),
         requiereLote: const Value(false),
         requiereCertificacion: const Value(false),
       ),
@@ -269,20 +274,39 @@ class AppDatabase extends _$AppDatabase {
     for (final categoria in categoriasDefault) {
       await into(categorias).insert(categoria, mode: InsertMode.insertOrIgnore);
     }
+
+    // Insertar una tienda principal por defecto
+    final tiendaPrincipal = TiendasCompanion.insert(
+      id: '00000000-0000-0000-0000-000000000001',
+      nombre: 'Tienda Central',
+      codigo: 'TIENDA-CENTRAL',
+      direccion: 'Av. Principal #123',
+      ciudad: 'Ciudad',
+      departamento: 'Departamento',
+      telefono: const Value('555-1234'),
+      horarioAtencion: const Value('Lun-Vie 8:00-18:00; Sáb 9:00-14:00'),
+    );
+
+    await into(tiendas).insert(
+      tiendaPrincipal,
+      mode: InsertMode.insertOrIgnore,
+    );
   }
 
   // Public method to ensure default data exists (can be called at any time)
   // Tries to fetch from Supabase first, then falls back to local seeds
   Future<void> ensureDefaultsExist() async {
     AppLogger.database('🔄 Ensuring default data exists...');
-    
+
     try {
       // Try to sync from remote first
       await _syncDefaultsFromRemote();
       AppLogger.database('✅ Defaults synced from remote successfully');
     } catch (e) {
       // If remote fetch fails, use local seeds
-      AppLogger.warning('⚠️ Could not fetch from remote, using local seeds: $e');
+      AppLogger.warning(
+        '⚠️ Could not fetch from remote, using local seeds: $e',
+      );
       await _seedInitialData();
       AppLogger.database('✅ Local seed data inserted');
     }
@@ -296,12 +320,14 @@ class AppDatabase extends _$AppDatabase {
     // Fetch categorías from Supabase
     try {
       final remoteCategorias = await categoriaRemote.getCategoriasActivas();
-      AppLogger.database('📥 Fetched ${remoteCategorias.length} categorías from Supabase');
-      
+      AppLogger.database(
+        '📥 Fetched ${remoteCategorias.length} categorías from Supabase',
+      );
+
       // Clear existing local categorías to avoid UNIQUE constraint conflicts
       await delete(categorias).go();
       AppLogger.database('🗑️  Cleared local categorías');
-      
+
       // Insert fresh data from remote
       for (final categoriaMap in remoteCategorias) {
         await into(categorias).insert(
@@ -310,13 +336,17 @@ class AppDatabase extends _$AppDatabase {
             nombre: categoriaMap['nombre'] as String,
             codigo: categoriaMap['codigo'] as String,
             descripcion: Value(categoriaMap['descripcion'] as String?),
-            requiereLote: Value(categoriaMap['requiere_lote'] as bool? ?? false),
-            requiereCertificacion: Value(categoriaMap['requiere_certificacion'] as bool? ?? false),
+            requiereLote: Value(
+              categoriaMap['requiere_lote'] as bool? ?? false,
+            ),
+            requiereCertificacion: Value(
+              categoriaMap['requiere_certificacion'] as bool? ?? false,
+            ),
             activo: Value(categoriaMap['activo'] as bool? ?? true),
           ),
         );
       }
-      
+
       // Ensure default category exists (fallback if not in remote)
       if (!remoteCategorias.any((cat) => cat['codigo'] == 'GEN')) {
         await into(categorias).insert(
@@ -324,15 +354,19 @@ class AppDatabase extends _$AppDatabase {
             id: 'b0e2f135-6f39-4b19-af25-f534bc1d2346',
             nombre: 'Sin Categoría',
             codigo: 'GEN',
-            descripcion: const Value('Categoría general para productos sin clasificar'),
+            descripcion: const Value(
+              'Categoría general para productos sin clasificar',
+            ),
             requiereLote: const Value(false),
             requiereCertificacion: const Value(false),
           ),
           mode: InsertMode.insertOrIgnore,
         );
       }
-      
-      AppLogger.database('✅ ${remoteCategorias.length} categorías synced from remote');
+
+      AppLogger.database(
+        '✅ ${remoteCategorias.length} categorías synced from remote',
+      );
     } catch (e) {
       AppLogger.error('Error fetching categorías from remote', e);
       rethrow;
@@ -341,12 +375,14 @@ class AppDatabase extends _$AppDatabase {
     // Fetch unidades from Supabase
     try {
       final remoteUnidades = await unidadRemote.getUnidadesActivas();
-      AppLogger.database('📥 Fetched ${remoteUnidades.length} unidades from Supabase');
-      
+      AppLogger.database(
+        '📥 Fetched ${remoteUnidades.length} unidades from Supabase',
+      );
+
       // Clear existing local unidades to avoid UNIQUE constraint conflicts
       await delete(unidadesMedida).go();
       AppLogger.database('🗑️  Cleared local unidades');
-      
+
       // Insert fresh data from remote
       for (final unidadMap in remoteUnidades) {
         await into(unidadesMedida).insert(
@@ -355,11 +391,13 @@ class AppDatabase extends _$AppDatabase {
             nombre: unidadMap['nombre'] as String,
             abreviatura: unidadMap['abreviatura'] as String,
             tipo: unidadMap['tipo'] as String,
-            factorConversion: Value(unidadMap['factor_conversion'] as double? ?? 1.0),
+            factorConversion: Value(
+              unidadMap['factor_conversion'] as double? ?? 1.0,
+            ),
           ),
         );
       }
-      
+
       // Ensure default unit exists (fallback if not in remote)
       if (!remoteUnidades.any((unit) => unit['abreviatura'] == 'UND')) {
         await into(unidadesMedida).insert(
@@ -372,8 +410,10 @@ class AppDatabase extends _$AppDatabase {
           mode: InsertMode.insertOrIgnore,
         );
       }
-      
-      AppLogger.database('✅ ${remoteUnidades.length} unidades synced from remote');
+
+      AppLogger.database(
+        '✅ ${remoteUnidades.length} unidades synced from remote',
+      );
     } catch (e) {
       AppLogger.error('Error fetching unidades from remote', e);
       rethrow;

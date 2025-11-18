@@ -26,4 +26,7 @@ class SyncConstants {
   static const String conflictStrategyServerWins = 'server_wins';
   static const String conflictStrategyClientWins = 'client_wins';
   static const String conflictStrategyManual = 'manual';
+
+  // Sincronización periódica
+  static const Duration periodicSyncInterval = Duration(minutes: 15);
 }

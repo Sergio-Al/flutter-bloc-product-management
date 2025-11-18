@@ -95,23 +95,20 @@ class HomePage extends StatelessWidget {
                               children: [
                                 Text(
                                   '¡Bienvenido!',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.grey[600]),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   user.nombreCompleto,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   user.email,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey[600]),
                                 ),
                               ],
                             ),
@@ -126,8 +123,8 @@ class HomePage extends StatelessWidget {
                   Text(
                     'Accesos Rápidos',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -155,8 +152,19 @@ class HomePage extends StatelessWidget {
                         subtitle: 'Ver stock',
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Inventario próximamente')),
+                            const SnackBar(
+                              content: Text('Inventario próximamente'),
+                            ),
                           );
+                        },
+                      ),
+                      _buildActionCard(
+                        context,
+                        icon: Icons.warehouse,
+                        title: 'Almacenes',
+                        subtitle: 'Gestionar almacenes',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/almacenes');
                         },
                       ),
                       _buildActionCard(
@@ -166,7 +174,9 @@ class HomePage extends StatelessWidget {
                         subtitle: 'Registrar movimientos',
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Movimientos próximamente')),
+                            const SnackBar(
+                              content: Text('Movimientos próximamente'),
+                            ),
                           );
                         },
                       ),
@@ -177,7 +187,9 @@ class HomePage extends StatelessWidget {
                         subtitle: 'Ver estadísticas',
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Reportes próximamente')),
+                            const SnackBar(
+                              content: Text('Reportes próximamente'),
+                            ),
                           );
                         },
                       ),
@@ -201,9 +213,7 @@ class HomePage extends StatelessWidget {
   }) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -212,25 +222,21 @@ class HomePage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 48,
-                color: Theme.of(context).primaryColor,
-              ),
+              Icon(icon, size: 48, color: Theme.of(context).primaryColor),
               const SizedBox(height: 12),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -246,9 +252,7 @@ class HomePage extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-            ),
+            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
@@ -344,9 +348,7 @@ class HomePage extends StatelessWidget {
               Navigator.of(dialogContext).pop();
               context.read<AuthBloc>().add(const AuthLogoutRequested());
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Cerrar Sesión'),
           ),
         ],

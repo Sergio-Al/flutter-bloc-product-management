@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart';
+import 'package:flutter_management_system/core/di/sync_constants.dart';
 import 'package:flutter_management_system/core/utils/logger.dart';
+import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
 import 'sync_status.dart';
@@ -23,7 +25,7 @@ class SyncManager {
   
   // Remote datasources
   final ProductoRemoteDataSource _productoRemote;
-  // TODO: Add other remote datasources as they're created
+  final AlmacenRemoteDataSource _almacenRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -39,11 +41,13 @@ class SyncManager {
     required SyncQueue syncQueue,
     required NetworkInfo networkInfo,
     required ProductoRemoteDataSource productoRemote,
+    required AlmacenRemoteDataSource almacenRemote,
     ConflictResolver? conflictResolver,
   })  : _localDb = localDb,
         _syncQueue = syncQueue,
         _networkInfo = networkInfo,
         _productoRemote = productoRemote,
+        _almacenRemote = almacenRemote,
         _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
@@ -61,7 +65,7 @@ class SyncManager {
 
     // Sincronización periódica cada 15 minutos
     _periodicSyncTimer = Timer.periodic(
-      const Duration(minutes: 15),
+      SyncConstants.periodicSyncInterval,
       (_) => syncAll(),
     );
   }
@@ -146,6 +150,8 @@ class SyncManager {
           return await _syncInventario(item);
         case SyncEntityType.movimiento:
           return await _syncMovimiento(item);
+        case SyncEntityType.almacen:
+          return await _syncAlmacen(item);
         // ... otros casos
         default:
           return Left(SyncFailure(
@@ -192,7 +198,42 @@ class SyncManager {
     }
   }
 
-  /// Convert camelCase JSON to snake_case for Supabase
+  // Sincronización de almacén
+  Future<Either<Failure, void>> _syncAlmacen(SyncItem item) async {
+    try {
+      AppLogger.info('🔄 Almacen data to sync: ${item.id}');
+      // Convert camelCase data to snake_case for Supabase
+      final remoteData = _convertAlmacenToRemoteFormat(item.data, isUpdate: item.operation == SyncOperation.update);
+      
+      switch (item.operation) {
+        case SyncOperation.create:
+          // Create on server
+          await _almacenRemote.createAlmacen(remoteData);
+          break;
+
+        case SyncOperation.update:
+          // Update on server
+          AppLogger.info( 'Synchronizing almacen update: $remoteData' );
+          await _almacenRemote.updateAlmacen(
+            id: item.entityId,
+            data: remoteData,
+          );
+          break;
+
+        case SyncOperation.delete:
+          // Delete on server (soft delete)
+          await _almacenRemote.deleteAlmacen(item.entityId);
+          break;
+      }
+
+      return const Right(null);
+    } catch (e) {
+      return Left(SyncFailure(message: 'Failed to sync almacen: $e'));
+    }
+  }
+
+
+  /// Convert camelCase JSON to snake_case for Supabase (Producto)
   Map<String, dynamic> _convertToRemoteFormat(Map<String, dynamic> data) {
     return {
       'id': data['id'],
@@ -223,6 +264,32 @@ class SyncManager {
       // 'sync_id': data['syncId'], 
       'last_sync': data['lastSync'],
     };
+  }
+
+  /// Convert camelCase JSON to snake_case for Supabase (Almacen)
+  Map<String, dynamic> _convertAlmacenToRemoteFormat(Map<String, dynamic> data, {bool isUpdate = false}) {
+    final converted = <String, dynamic>{
+      'nombre': data['nombre'],
+      'codigo': data['codigo'],
+      'ubicacion': data['ubicacion'],
+      'tipo': data['tipo'],
+      'capacidad_m3': data['capacidadM3'],
+      'area_m2': data['areaM2'],
+      'activo': data['activo'],
+    };
+    
+    // Only include tienda_id for CREATE, not UPDATE
+    if (!isUpdate && data['tiendaId'] != null) {
+      converted['tienda_id'] = data['tiendaId'];
+    }
+    
+    // Only include deleted_at if it exists
+    if (data['deletedAt'] != null) {
+      converted['deleted_at'] = data['deletedAt'];
+    }
+    
+    AppLogger.database('🔄 Almacen data to sync (isUpdate: $isUpdate): $converted');
+    return converted;
   }
 
   /// Ejemplo de sincronización de inventario

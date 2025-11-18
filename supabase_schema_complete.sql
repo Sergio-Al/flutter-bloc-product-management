@@ -639,6 +639,12 @@ INSERT INTO public.categorias (nombre, codigo, descripcion, requiere_lote, requi
     ('Ladrillos y Bloques', 'LAD', 'Ladrillos, bloques, adoquines', false, false)
 ON CONFLICT (codigo) DO NOTHING;
 
+-- Insertar una tienda principal
+INSERT INTO public.tiendas (id, nombre, codigo, direccion, ciudad, departamento,
+    telefono, horario_atencion) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'Tienda Central', 'TIENDA-CENTRAL', 'Av. Principal #123', 'Ciudad', 'Departamento', '555-1234', 'Lun-Vie 8:00-18:00; Sáb 9:00-14:00')
+ON CONFLICT (id) DO NOTHING;  
+
 -- ============================================
 -- VISTAS ÚTILES
 -- ============================================

@@ -223,6 +223,7 @@ class AlmacenRepositoryImpl extends AlmacenRepository {
       // First update locally
       final almacenTable = almacen.toTable();
 
+      AppLogger.info('Updating almacen locally: ${almacen.id}');
       final updated = await almacenDao.updateAlmacen(almacenTable);
       if (!updated) {
         return Left(CacheFailure(message: 'Almacen not found locally'));
@@ -237,6 +238,7 @@ class AlmacenRepositoryImpl extends AlmacenRepository {
       );
       return Right(almacen);
     } catch (e) {
+      AppLogger.error('Error updating almacen: $e');
       return Left(CacheFailure(message: 'Failed to update almacen: $e'));
     }
   }

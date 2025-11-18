@@ -157,6 +157,7 @@ Future<void> setupDependencies() async {
       syncQueue: getIt<SyncQueue>(),
       networkInfo: getIt<NetworkInfo>(),
       productoRemote: getIt<ProductoRemoteDataSource>(),
+      almacenRemote: getIt<AlmacenRemoteDataSource>(),
       // TODO: Add other remote datasources as they're created
     ),
   );
