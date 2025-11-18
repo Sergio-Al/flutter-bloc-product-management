@@ -46,6 +46,52 @@ class LoteDao extends DatabaseAccessor<AppDatabase> with _$LoteDaoMixin {
         .get();
   }
 
+  // Obtener lotes vacios (sin stock disponible)
+  Future<List<LoteTable>> getLotesVacios() {
+    return (select(lotes)
+          ..where((tbl) => tbl.cantidadActual.equals(0))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaFabricacion)]))
+        .get();
+  }
+
+  // Buscar lotes por consulta
+  Future<List<LoteTable>> searchLotes(String query) {
+    final likeQuery = '%$query%';
+    return (select(lotes)
+          ..where((tbl) =>
+              tbl.numeroLote.like(likeQuery) |
+              tbl.numeroFactura.like(likeQuery) |
+              tbl.observaciones.like(likeQuery)))
+        .get();
+  }
+
+  // Obtener lote por factura
+  Future<List<LoteTable>> getLotesByFactura(
+    String numeroFactura,
+  ) {
+    return (select(lotes)
+          ..where((tbl) => tbl.numeroFactura.equals(numeroFactura))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaFabricacion)]))
+        .get();
+  }
+
+  // Obtener lotes con certificado de calidad
+  Future<List<LoteTable>> getLotesConCertificado() {
+    return (select(lotes)
+          ..where((tbl) => tbl.certificadoCalidadUrl.isNotNull() &
+              tbl.certificadoCalidadUrl.isNotValue(''))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaFabricacion)]))
+        .get();
+  }
+
+  // Obtener lotes con stock disponible
+  Future<List<LoteTable>> getLotesConStock() {
+    return (select(lotes)
+          ..where((tbl) => tbl.cantidadActual.isBiggerThanValue(0))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaFabricacion)]))
+        .get();
+  }
+
   // Obtener lotes vencidos
   Future<List<LoteTable>> getLotesVencidos() {
     final now = DateTime.now();
@@ -147,4 +193,43 @@ class LoteDao extends DatabaseAccessor<AppDatabase> with _$LoteDaoMixin {
     ));
     return result > 0;
   }
+
+  // Actualizar lote completo
+  Future<bool> updateLote(LoteTable lote) async {
+    final result = await (update(lotes)..where((tbl) => tbl.id.equals(lote.id)))
+        .write(LotesCompanion(
+      numeroLote: Value(lote.numeroLote),
+      productoId: Value(lote.productoId),
+      proveedorId: Value(lote.proveedorId),
+      fechaFabricacion: Value(lote.fechaFabricacion),
+      fechaVencimiento: Value(lote.fechaVencimiento),
+      numeroFactura: Value(lote.numeroFactura),
+      cantidadInicial: Value(lote.cantidadInicial),
+      cantidadActual: Value(lote.cantidadActual),
+      certificadoCalidadUrl: Value(lote.certificadoCalidadUrl),
+      observaciones: Value(lote.observaciones),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return result > 0;
+  }
+
+  // Eliminar lote (hard delete - usar con cuidado)
+  // NOTA: Esto puede romper referencias en inventarios/movimientos
+  // Considerar usar soft delete en su lugar
+  Future<bool> deleteLote(String id) async {
+    final result = await (delete(lotes)..where((tbl) => tbl.id.equals(id))).go();
+    return result > 0;
+  }
+
+  // Soft delete - marca lote como inactivo sin eliminarlo
+  // RECOMENDADO: Usar esto en lugar de deleteLote()
+  // Requiere agregar campo 'activo' a la tabla lotes
+  // Future<bool> desactivarLote(String id) async {
+  //   final result = await (update(lotes)..where((tbl) => tbl.id.equals(id)))
+  //       .write(LotesCompanion(
+  //     activo: const Value(false),
+  //     updatedAt: Value(DateTime.now()),
+  //   ));
+  //   return result > 0;
+  // }
 }

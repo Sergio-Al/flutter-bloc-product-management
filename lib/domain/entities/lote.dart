@@ -42,7 +42,9 @@ class Lote extends Equatable {
   /// Check if lot is near expiration (within 30 days)
   bool get isNearExpiration {
     if (fechaVencimiento == null) return false;
-    final daysUntilExpiration = fechaVencimiento!.difference(DateTime.now()).inDays;
+    final daysUntilExpiration = fechaVencimiento!
+        .difference(DateTime.now())
+        .inDays;
     return daysUntilExpiration > 0 && daysUntilExpiration <= 30;
   }
 
@@ -62,27 +64,47 @@ class Lote extends Equatable {
   }
 
   /// Check if lot has quality certificate
-  bool get hasCertificate => certificadoCalidadUrl != null && certificadoCalidadUrl!.isNotEmpty;
+  bool get hasCertificate =>
+      certificadoCalidadUrl != null && certificadoCalidadUrl!.isNotEmpty;
 
   @override
   List<Object?> get props => [
-        id,
-        numeroLote,
-        productoId,
-        fechaFabricacion,
-        fechaVencimiento,
-        proveedorId,
-        numeroFactura,
-        cantidadInicial,
-        cantidadActual,
-        certificadoCalidadUrl,
-        observaciones,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    numeroLote,
+    productoId,
+    fechaFabricacion,
+    fechaVencimiento,
+    proveedorId,
+    numeroFactura,
+    cantidadInicial,
+    cantidadActual,
+    certificadoCalidadUrl,
+    observaciones,
+    createdAt,
+    updatedAt,
+  ];
 
   @override
   String toString() {
     return 'Lote(id: $id, numeroLote: $numeroLote, cantidadActual: $cantidadActual/$cantidadInicial)';
+  }
+
+  // Convert to JSON (for sync or other purposes)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'numeroLote': numeroLote,
+      'productoId': productoId,
+      'fechaFabricacion': fechaFabricacion?.toIso8601String(),
+      'fechaVencimiento': fechaVencimiento?.toIso8601String(),
+      'proveedorId': proveedorId,
+      'numeroFactura': numeroFactura,
+      'cantidadInicial': cantidadInicial,
+      'cantidadActual': cantidadActual,
+      'certificadoCalidadUrl': certificadoCalidadUrl,
+      'observaciones': observaciones,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
   }
 }
