@@ -2,6 +2,7 @@ export 'create_lote_usecase.dart';
 export 'delete_lote_usecase.dart';
 export 'get_lote_by_id_usecase.dart';
 export 'get_lote_by_numero_usecase.dart';
+export 'get_lotes_by_factura_usecase.dart';
 export 'get_lotes_by_producto_usecase.dart';
 export 'get_lotes_by_proveedor_usecase.dart';
 export 'get_lotes_con_certificado_usecase.dart';
