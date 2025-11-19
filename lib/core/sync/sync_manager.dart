@@ -6,6 +6,7 @@ import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
 import 'sync_status.dart';
@@ -30,6 +31,7 @@ class SyncManager {
   final AlmacenRemoteDataSource _almacenRemote;
   final TiendaRemoteDataSource _tiendaRemote;
   final ProveedorRemoteDataSource _proveedorRemote;
+  final LoteRemoteDataSource _loteRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -48,6 +50,7 @@ class SyncManager {
     required AlmacenRemoteDataSource almacenRemote,
     required TiendaRemoteDataSource tiendaRemote,
     required ProveedorRemoteDataSource proveedorRemote,
+    required LoteRemoteDataSource loteRemote,
     ConflictResolver? conflictResolver,
   }) : _localDb = localDb,
        _syncQueue = syncQueue,
@@ -56,6 +59,7 @@ class SyncManager {
        _almacenRemote = almacenRemote,
        _tiendaRemote = tiendaRemote,
        _proveedorRemote = proveedorRemote,
+       _loteRemote = loteRemote,
        _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
