@@ -258,6 +258,83 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     });
   }
 
+  /// Crea un ajuste de inventario (movimiento tipo AJUSTE)
+  Future<Map<String, dynamic>> createAjuste({
+    required String productoId,
+    required String tiendaId,
+    required int cantidad,
+    required String motivo,
+    String? observaciones,
+  }) async {
+    return SupabaseDataSource.executeQuery(() async {
+      AppLogger.database('Creando ajuste de producto: $productoId');
+
+      final response = await SupabaseDataSource.client
+          .rpc('create_ajuste', params: {
+        'p_producto_id': productoId,
+        'p_tienda_id': tiendaId,
+        'p_cantidad': cantidad,
+        'p_motivo': motivo,
+        if (observaciones != null) 'p_observaciones': observaciones,
+      });
+
+      AppLogger.database('✅ Ajuste creado');
+      return response;
+    });
+  }
+
+  /// Crea una devolución (movimiento tipo DEVOLUCION)
+  Future<Map<String, dynamic>> createDevolucion({
+    required String productoId,
+    required String tiendaId,
+    required int cantidad,
+    required String motivo,
+    String? numeroFactura,
+    String? observaciones,
+  }) async {
+    return SupabaseDataSource.executeQuery(() async {
+      AppLogger.database('Creando devolución de producto: $productoId');
+
+      final response = await SupabaseDataSource.client
+          .rpc('create_devolucion', params: {
+        'p_producto_id': productoId,
+        'p_tienda_id': tiendaId,
+        'p_cantidad': cantidad,
+        'p_motivo': motivo,
+        if (numeroFactura != null) 'p_numero_factura': numeroFactura,
+        if (observaciones != null) 'p_observaciones': observaciones,
+      });
+
+      AppLogger.database('✅ Devolución creada');
+      return response;
+    });
+  }
+
+  /// Crea una merma/pérdida (movimiento tipo MERMA)
+  Future<Map<String, dynamic>> createMerma({
+    required String productoId,
+    required String tiendaId,
+    required int cantidad,
+    required String motivo,
+    String? observaciones,
+  }) async {
+    return SupabaseDataSource.executeQuery(() async {
+      AppLogger.database('Creando merma de producto: $productoId');
+
+      final response = await SupabaseDataSource.client
+          .rpc('create_merma', params: {
+        'p_producto_id': productoId,
+        'p_tienda_id': tiendaId,
+        'p_cantidad': cantidad,
+        'p_motivo': motivo,
+        if (observaciones != null) 'p_observaciones': observaciones,
+      });
+
+      AppLogger.database('✅ Merma creada');
+      return response;
+    });
+  }
+
   /// Obtiene movimientos por tipo
   Future<List<Map<String, dynamic>>> getMovimientosByTipo({
     required String tipo,

@@ -29,6 +29,22 @@ class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMi
         .get();
   }
 
+  // Obtener movimientos por usuario
+  Future<List<MovimientoTable>> getMovimientosByUsuario(String usuarioId) {
+    return (select(movimientos)
+          ..where((tbl) => tbl.usuarioId.equals(usuarioId))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)]))
+        .get();
+  }
+
+  // Obtener movimientos por producto
+  Future<List<MovimientoTable>> getMovimientosByProducto(String productoId) {
+    return (select(movimientos)
+          ..where((tbl) => tbl.productoId.equals(productoId))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)]))
+        .get();
+  }
+
   // Obtener movimientos por id
   Future<MovimientoTable?> getMovimientoById(String id) {
     return (select(movimientos)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
@@ -39,6 +55,14 @@ class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMi
     return (select(movimientos)
           ..where((tbl) =>
               tbl.tiendaOrigenId.equals(tiendaId) | tbl.tiendaDestinoId.equals(tiendaId))
+          ..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)]))
+        .get();
+  }
+
+  // Obtener movimientos por estado
+  Future<List<MovimientoTable>> getMovimientosByEstado(String estado) {
+    return (select(movimientos)
+          ..where((tbl) => tbl.estado.equals(estado))
           ..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)]))
         .get();
   }
@@ -87,11 +111,66 @@ class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMi
     ));
   }
 
+  // Actualizar movimiento completo
+  // ⚠️ SOLO debe usarse para movimientos en estado PENDIENTE
+  // Los movimientos completados/en tránsito/cancelados NO deben modificarse
+  Future<bool> updateMovimiento(MovimientoTable movimiento) async {
+    // Validación: solo permitir edición si está PENDIENTE
+    final existing = await getMovimientoById(movimiento.id);
+    if (existing == null) {
+      throw Exception('Movimiento no encontrado');
+    }
+    
+    if (existing.estado != 'PENDIENTE') {
+      throw Exception(
+        'Solo los movimientos PENDIENTES pueden editarse. Estado actual: ${existing.estado}',
+      );
+    }
+
+    final result = await (update(movimientos)..where((tbl) => tbl.id.equals(movimiento.id)))
+        .write(MovimientosCompanion(
+      numeroMovimiento: Value(movimiento.numeroMovimiento),
+      productoId: Value(movimiento.productoId),
+      inventarioId: Value(movimiento.inventarioId),
+      loteId: Value(movimiento.loteId),
+      tiendaOrigenId: Value(movimiento.tiendaOrigenId),
+      tiendaDestinoId: Value(movimiento.tiendaDestinoId),
+      proveedorId: Value(movimiento.proveedorId),
+      tipo: Value(movimiento.tipo),
+      motivo: Value(movimiento.motivo),
+      cantidad: Value(movimiento.cantidad),
+      costoUnitario: Value(movimiento.costoUnitario),
+      costoTotal: Value(movimiento.costoTotal),
+      pesoTotalKg: Value(movimiento.pesoTotalKg),
+      usuarioId: Value(movimiento.usuarioId),
+      estado: Value(movimiento.estado),
+      fechaMovimiento: Value(movimiento.fechaMovimiento),
+      numeroFactura: Value(movimiento.numeroFactura),
+      numeroGuiaRemision: Value(movimiento.numeroGuiaRemision),
+      vehiculoPlaca: Value(movimiento.vehiculoPlaca),
+      conductor: Value(movimiento.conductor),
+      observaciones: Value(movimiento.observaciones),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return result > 0;
+  }
+
   // Actualizar estado de movimiento
+  // Usar este método para cambios de estado del workflow (PENDIENTE → EN_TRANSITO → COMPLETADO)
   Future<bool> updateEstadoMovimiento(String id, String nuevoEstado) async {
     final result = await (update(movimientos)..where((tbl) => tbl.id.equals(id)))
         .write(MovimientosCompanion(
       estado: Value(nuevoEstado),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return result > 0;
+  }
+
+  // Actualizar observaciones (usado para agregar motivo de cancelación)
+  Future<bool> updateObservaciones(String id, String observaciones) async {
+    final result = await (update(movimientos)..where((tbl) => tbl.id.equals(id)))
+        .write(MovimientosCompanion(
+      observaciones: Value(observaciones),
       updatedAt: Value(DateTime.now()),
     ));
     return result > 0;

@@ -60,6 +60,7 @@ abstract class MovimientoRepository {
     required String tiendaDestinoId,
     required String proveedorId,
     required int cantidad,
+    required String usuarioId,
     required double costoUnitario,
     String? loteId,
     String? numeroFactura,
@@ -71,6 +72,7 @@ abstract class MovimientoRepository {
     required String productoId,
     required String tiendaOrigenId,
     required int cantidad,
+    required String usuarioId,
     required double costoUnitario,
     String? loteId,
     String? numeroFactura,
@@ -83,6 +85,7 @@ abstract class MovimientoRepository {
     required String tiendaOrigenId,
     required String tiendaDestinoId,
     required int cantidad,
+    required String usuarioId,
     String? loteId,
     String? vehiculoPlaca,
     String? conductor,
@@ -94,6 +97,7 @@ abstract class MovimientoRepository {
   Future<Either<Failure, Movimiento>> createAjuste({
     required String productoId,
     required String tiendaId,
+    required String usuarioId,
     required int cantidad,
     required String motivo,
     String? observaciones,
@@ -105,6 +109,7 @@ abstract class MovimientoRepository {
     required String tiendaId,
     required int cantidad,
     required String motivo,
+    required String usuarioId,
     String? numeroFactura,
     String? observaciones,
   });
@@ -115,6 +120,7 @@ abstract class MovimientoRepository {
     required String tiendaId,
     required int cantidad,
     required String motivo,
+    required String usuarioId,
     String? observaciones,
   });
 

@@ -35,12 +35,10 @@ extension MovimientoTableMapper on MovimientoTable {
       id: id,
       numeroMovimiento: numeroMovimiento,
       productoId: productoId,
-      inventarioId: inventarioId?.isEmpty == true ? null : inventarioId,
+      inventarioId: inventarioId.isEmpty ? null : inventarioId,
       loteId: loteId?.isEmpty == true ? null : loteId,
       tiendaOrigenId: tiendaOrigenId?.isEmpty == true ? null : tiendaOrigenId,
-      tiendaDestinoId: tiendaDestinoId?.isEmpty == true
-          ? null
-          : tiendaDestinoId,
+      tiendaDestinoId: tiendaDestinoId?.isEmpty == true ? null : tiendaDestinoId,
       proveedorId: proveedorId?.isEmpty == true ? null : proveedorId,
       tipo: tipo,
       motivo: motivo?.isEmpty == true ? null : motivo,
@@ -95,5 +93,35 @@ extension MovimientoEntityMapper on Movimiento {
       updatedAt: updatedAt,
       sincronizado: sincronizado,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'numero_movimiento': numeroMovimiento,
+      'producto_id': productoId,
+      'inventario_id': inventarioId,
+      'lote_id': loteId,
+      'tienda_origen_id': tiendaOrigenId,
+      'tienda_destino_id': tiendaDestinoId,
+      'proveedor_id': proveedorId,
+      'tipo': tipo,
+      'motivo': motivo,
+      'cantidad': cantidad,
+      'costo_unitario': costoUnitario,
+      'costo_total': costoTotal,
+      'peso_total_kg': pesoTotalKg,
+      'usuario_id': usuarioId,
+      'estado': estado,
+      'fecha_movimiento': fechaMovimiento.toIso8601String(),
+      'numero_factura': numeroFactura,
+      'numero_guia_remision': numeroGuiaRemision,
+      'vehiculo_placa': vehiculoPlaca,
+      'conductor': conductor,
+      'observaciones': observaciones,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'sincronizado': sincronizado,
+    };
   }
 }
