@@ -34,7 +34,7 @@ class HomePage extends StatelessWidget {
                 icon: const Icon(Icons.sync),
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
-                  
+
                   // Show loading indicator
                   messenger.showSnackBar(
                     const SnackBar(
@@ -45,7 +45,9 @@ class HomePage extends StatelessWidget {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           ),
                           SizedBox(width: 16),
@@ -68,7 +70,9 @@ class HomePage extends StatelessWidget {
                     (failure) {
                       messenger.showSnackBar(
                         SnackBar(
-                          content: Text('Error en sincronización: ${failure.message}'),
+                          content: Text(
+                            'Error en sincronización: ${failure.message}',
+                          ),
                           backgroundColor: Colors.red,
                           duration: const Duration(seconds: 5),
                         ),
@@ -278,7 +282,16 @@ class HomePage extends StatelessWidget {
                           Navigator.pushNamed(context, '/lotes');
                         },
                       ),
-                        
+                      // inventarios page
+                      _buildActionCard(
+                        context,
+                        icon: Icons.inventory,
+                        title: 'Inventarios',
+                        subtitle: 'Gestionar inventarios',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/inventarios');
+                        },
+                      ),
                     ],
                   ),
                 ],

@@ -208,6 +208,10 @@ Future<void> setupDependencies() async {
     () => UnidadMedidaRemoteDataSource(),
   );
 
+  getIt.registerLazySingleton<InventarioRemoteDataSource>(
+    () => InventarioRemoteDataSource(),
+  );
+
   // ============================================================================
   // Core - Sync System (Must be after Remote DataSources)
   // ============================================================================
@@ -805,7 +809,6 @@ Future<void> setupDependencies() async {
       liberarStockInventario: getIt<LiberarStockUsecase>(),
       deleteInventario: getIt<DeleteInventarioUsecase>(),
       ajustarInventario: getIt<AjustarInventarioUsecase>(),
-      // Inject use cases here
     ),
   );
 }

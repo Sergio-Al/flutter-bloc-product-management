@@ -12,11 +12,7 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     String? almacenId,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios');
-
-      var query = SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
+      var query = SupabaseDataSource.client.from(_tableName).select('''
             *,
             producto:productos(*),
             almacen:almacenes(*),
@@ -34,7 +30,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
 
       final response = await query.order('producto_id', ascending: true);
 
-      AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
     });
   }
@@ -45,8 +40,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     required String almacenId,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventario: $productoId - $almacenId');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
@@ -65,8 +58,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     int? cantidadReservada,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Actualizando stock: $id');
-
       final data = <String, dynamic>{
         'cantidad_actual': cantidadActual,
         'ultima_actualizacion': DateTime.now().toIso8601String(),
@@ -83,7 +74,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
           .select()
           .single();
 
-      AppLogger.database('✅ Stock actualizado');
       return response;
     });
   }
@@ -93,7 +83,8 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     Map<String, dynamic> data,
   ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Creando inventario');
+      // delete inventarios lote id temporalmente
+      // data.remove('lote_id');
 
       final response = await SupabaseDataSource.client
           .from(_tableName)
@@ -101,7 +92,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
           .select()
           .single();
 
-      AppLogger.database('✅ Inventario creado: ${response['id']}');
       return response;
     });
   }
@@ -111,8 +101,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     String? tiendaId,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios con stock bajo');
-
       var query = SupabaseDataSource.client
           .from(_tableName)
           .select('''
@@ -134,10 +122,9 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Obtiene inventarios con stock crítico (por debajo del mínimo)
   Future<List<Map<String, dynamic>>> getInventariosStockCritico() async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios con stock crítico');
-
-      final response = await SupabaseDataSource.client
-          .rpc('get_inventarios_stock_critico');
+      final response = await SupabaseDataSource.client.rpc(
+        'get_inventarios_stock_critico',
+      );
 
       return List<Map<String, dynamic>>.from(response);
     });
@@ -149,13 +136,13 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     String? almacenId,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo valor total del inventario');
-
-      final response = await SupabaseDataSource.client
-          .rpc('get_valor_total_inventario', params: {
-        if (tiendaId != null) 'p_tienda_id': tiendaId,
-        if (almacenId != null) 'p_almacen_id': almacenId,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'get_valor_total_inventario',
+        params: {
+          if (tiendaId != null) 'p_tienda_id': tiendaId,
+          if (almacenId != null) 'p_almacen_id': almacenId,
+        },
+      );
 
       return response;
     });
@@ -168,16 +155,15 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     required String motivo,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Ajustando stock del inventario: $inventarioId');
+      final response = await SupabaseDataSource.client.rpc(
+        'ajustar_stock_inventario',
+        params: {
+          'p_inventario_id': inventarioId,
+          'p_nueva_cantidad': nuevaCantidad,
+          'p_motivo': motivo,
+        },
+      );
 
-      final response = await SupabaseDataSource.client
-          .rpc('ajustar_stock_inventario', params: {
-        'p_inventario_id': inventarioId,
-        'p_nueva_cantidad': nuevaCantidad,
-        'p_motivo': motivo,
-      });
-
-      AppLogger.database('✅ Stock ajustado');
       return response;
     });
   }
@@ -185,11 +171,10 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Marca un inventario como sincronizado
   Future<void> markAsSynced(String id, DateTime syncTime) async {
     return SupabaseDataSource.executeQuery(() async {
-      await SupabaseDataSource.client.from(_tableName).update({
-        'last_sync': syncTime.toIso8601String(),
-      }).eq('id', id);
-
-      AppLogger.sync('Inventario marcado como sincronizado: $id');
+      await SupabaseDataSource.client
+          .from(_tableName)
+          .update({'last_sync': syncTime.toIso8601String()})
+          .eq('id', id);
     });
   }
 
@@ -198,28 +183,25 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     DateTime since,
   ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.sync('Obteniendo inventarios modificados desde: $since');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .gt('updated_at', since.toIso8601String())
           .order('updated_at');
 
-      AppLogger.sync('✅ ${response.length} inventarios modificados');
       return List<Map<String, dynamic>>.from(response);
     });
   }
 
   /// Obtiene resumen de inventario por tienda
-  Future<List<Map<String, dynamic>>> getResumenPorTienda(String tiendaId) async {
+  Future<List<Map<String, dynamic>>> getResumenPorTienda(
+    String tiendaId,
+  ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo resumen de inventario por tienda: $tiendaId');
-
-      final response = await SupabaseDataSource.client
-          .rpc('get_resumen_inventario_tienda', params: {
-        'p_tienda_id': tiendaId,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'get_resumen_inventario_tienda',
+        params: {'p_tienda_id': tiendaId},
+      );
 
       return List<Map<String, dynamic>>.from(response);
     });
@@ -228,8 +210,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Obtiene inventario por ID
   Future<Map<String, dynamic>?> getInventarioById(String id) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventario: $id');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
@@ -241,49 +221,46 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   }
 
   /// Obtiene inventarios por producto
-  Future<List<Map<String, dynamic>>> getInventariosByProducto(String productoId) async {
+  Future<List<Map<String, dynamic>>> getInventariosByProducto(
+    String productoId,
+  ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios por producto: $productoId');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .eq('producto_id', productoId)
           .order('almacen_id');
 
-      AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
     });
   }
 
   /// Obtiene inventarios por tienda
-  Future<List<Map<String, dynamic>>> getInventariosByTienda(String tiendaId) async {
+  Future<List<Map<String, dynamic>>> getInventariosByTienda(
+    String tiendaId,
+  ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios por tienda: $tiendaId');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .eq('tienda_id', tiendaId)
           .order('producto_id');
 
-      AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
     });
   }
 
   /// Obtiene inventarios por almacén
-  Future<List<Map<String, dynamic>>> getInventariosByAlmacen(String almacenId) async {
+  Future<List<Map<String, dynamic>>> getInventariosByAlmacen(
+    String almacenId,
+  ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios por almacén: $almacenId');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .eq('almacen_id', almacenId)
           .order('producto_id');
 
-      AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
     });
   }
@@ -291,15 +268,12 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Obtiene inventarios por lote
   Future<List<Map<String, dynamic>>> getInventariosByLote(String loteId) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios por lote: $loteId');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .eq('lote_id', loteId)
           .order('producto_id');
 
-      AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
     });
   }
@@ -307,15 +281,12 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Obtiene inventarios disponibles (con stock > 0)
   Future<List<Map<String, dynamic>>> getInventariosDisponibles() async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo inventarios disponibles');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .select('*')
           .gt('cantidad_disponible', 0)
           .order('producto_id');
 
-      AppLogger.database('✅ ${response.length} inventarios disponibles');
       return List<Map<String, dynamic>>.from(response);
     });
   }
@@ -326,8 +297,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     required Map<String, dynamic> data,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Actualizando inventario: $id');
-
       final response = await SupabaseDataSource.client
           .from(_tableName)
           .update(data)
@@ -335,7 +304,6 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
           .select()
           .single();
 
-      AppLogger.database('✅ Inventario actualizado');
       return response;
     });
   }
@@ -343,14 +311,7 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
   /// Elimina un inventario
   Future<void> deleteInventario(String id) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Eliminando inventario: $id');
-
-      await SupabaseDataSource.client
-          .from(_tableName)
-          .delete()
-          .eq('id', id);
-
-      AppLogger.database('✅ Inventario eliminado');
+      await SupabaseDataSource.client.from(_tableName).delete().eq('id', id);
     });
   }
 
@@ -360,15 +321,11 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     required int cantidad,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Reservando stock: $inventarioId, cantidad: $cantidad');
+      final response = await SupabaseDataSource.client.rpc(
+        'reservar_stock_inventario',
+        params: {'p_inventario_id': inventarioId, 'p_cantidad': cantidad},
+      );
 
-      final response = await SupabaseDataSource.client
-          .rpc('reservar_stock_inventario', params: {
-        'p_inventario_id': inventarioId,
-        'p_cantidad': cantidad,
-      });
-
-      AppLogger.database('✅ Stock reservado');
       return response;
     });
   }
@@ -379,15 +336,11 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     required int cantidad,
   }) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Liberando stock: $inventarioId, cantidad: $cantidad');
+      final response = await SupabaseDataSource.client.rpc(
+        'liberar_stock_inventario',
+        params: {'p_inventario_id': inventarioId, 'p_cantidad': cantidad},
+      );
 
-      final response = await SupabaseDataSource.client
-          .rpc('liberar_stock_inventario', params: {
-        'p_inventario_id': inventarioId,
-        'p_cantidad': cantidad,
-      });
-
-      AppLogger.database('✅ Stock liberado');
       return response;
     });
   }

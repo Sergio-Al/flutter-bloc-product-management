@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/auth/auth_event.dart';
+import 'package:flutter_management_system/presentation/blocs/inventario/inventario_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/lote/lote_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
 import 'package:flutter_management_system/presentation/pages/almacenes/almacenes_list_page.dart';
+import 'package:flutter_management_system/presentation/pages/inventarios/inventarios_list_page.dart';
 import 'package:flutter_management_system/presentation/pages/lotes/lotes_list_page.dart';
 import 'package:flutter_management_system/presentation/pages/proveedores/proveedores_list_page.dart';
 import 'package:flutter_management_system/presentation/pages/tiendas/tiendas_list_page.dart';
@@ -59,21 +61,25 @@ class MyApp extends StatelessWidget {
           '/home': (context) => const HomePage(),
           '/productos': (context) => const ProductosListPage(),
           '/almacenes': (context) => BlocProvider<AlmacenBloc>(
-                create: (context) => getIt<AlmacenBloc>(),
-                child: const AlmacenesListPage(),
-              ),
+            create: (context) => getIt<AlmacenBloc>(),
+            child: const AlmacenesListPage(),
+          ),
           '/tiendas': (context) => BlocProvider<TiendaBloc>(
-                create: (context) => getIt<TiendaBloc>(),
-                child: const TiendasListPage(),
-              ),
+            create: (context) => getIt<TiendaBloc>(),
+            child: const TiendasListPage(),
+          ),
           '/proveedores': (context) => BlocProvider<ProveedorBloc>(
-                create: (context) => getIt<ProveedorBloc>(),
-                child: const ProveedoresListPage(),
-              ),
+            create: (context) => getIt<ProveedorBloc>(),
+            child: const ProveedoresListPage(),
+          ),
           '/lotes': (context) => BlocProvider<LoteBloc>(
-                create: (context) => getIt<LoteBloc>(),
-                child: const LotesListPage(),
-              ),
+            create: (context) => getIt<LoteBloc>(),
+            child: const LotesListPage(),
+          ),
+          '/inventarios': (context) => BlocProvider<InventarioBloc>(
+            create: (context) => getIt<InventarioBloc>(),
+            child: const InventariosListPage(),
+          ),
         },
       ),
     );

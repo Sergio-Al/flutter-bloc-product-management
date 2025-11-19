@@ -489,6 +489,7 @@ class SyncManager {
     bool isUpdate = false,
   }) {
     final converted = <String, dynamic>{
+      'id': data['id'],
       'numero_lote': data['numeroLote'],
       'producto_id': data['productoId'],
       'fecha_fabricacion': data['fechaFabricacion'],
@@ -554,7 +555,7 @@ class SyncManager {
       'lote_id': data['loteId'],
       'cantidad_actual': data['cantidadActual'],
       'cantidad_reservada': data['cantidadReservada'],
-      'cantidad_disponible': data['cantidadDisponible'],
+      // 'cantidad_disponible': data['cantidadDisponible'],
       'valor_total': data['valorTotal'],
       'ubicacion_fisica': data['ubicacionFisica'],
       'ultima_actualizacion': data['ultimaActualizacion'],
@@ -880,16 +881,17 @@ class SyncManager {
     try {
       final remoteData = await _loteRemote.getLotes();
 
-      AppLogger.sync('Sincronizando ${remoteData.length} lotes...');
+      // AppLogger.sync('Sincronizando ${remoteData.length} lotes...');
 
       for (final data in remoteData) {
+        AppLogger.database('Lote data: $data');
         final lote = LotesCompanion(
           id: Value(data['id'] as String),
           numeroLote: Value(data['numero_lote'] as String),
           productoId: Value(data['producto_id'] as String),
           proveedorId: Value(data['proveedor_id'] as String?),
           cantidadInicial: Value(data['cantidad_inicial'] as int? ?? 0),
-          cantidadActual: Value(data['cantidad'] as int? ?? 0),
+          cantidadActual: Value(data['cantidad_actual'] as int? ?? 0),
           fechaFabricacion: Value(
             data['fecha_fabricacion'] != null
                 ? DateTime.parse(data['fecha_fabricacion'] as String)
@@ -940,7 +942,7 @@ class SyncManager {
           loteId: Value(data['lote_id'] as String?),
           cantidadActual: Value(data['cantidad_actual'] as int? ?? 0),
           cantidadReservada: Value(data['cantidad_reservada'] as int? ?? 0),
-          cantidadDisponible: Value(data['cantidad_disponible'] as int? ?? 0),
+          // cantidadDisponible: Value(data['cantidad_disponible'] as int? ?? 0),
           valorTotal: Value(data['valor_total'] as double? ?? 0.0),
           ubicacionFisica: Value(data['ubicacion_fisica'] as String?),
           ultimaActualizacion: Value(
