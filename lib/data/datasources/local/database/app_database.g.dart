@@ -6386,9 +6386,9 @@ class $LotesTable extends Lotes with TableInfo<$LotesTable, LoteTable> {
   late final GeneratedColumn<String> proveedorId = GeneratedColumn<String>(
     'proveedor_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES proveedores (id)',
     ),
@@ -6571,8 +6571,6 @@ class $LotesTable extends Lotes with TableInfo<$LotesTable, LoteTable> {
           _proveedorIdMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_proveedorIdMeta);
     }
     if (data.containsKey('numero_factura')) {
       context.handle(
@@ -6675,7 +6673,7 @@ class $LotesTable extends Lotes with TableInfo<$LotesTable, LoteTable> {
       proveedorId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}proveedor_id'],
-      )!,
+      ),
       numeroFactura: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}numero_factura'],
@@ -6727,7 +6725,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
   final String productoId;
   final DateTime? fechaFabricacion;
   final DateTime? fechaVencimiento;
-  final String proveedorId;
+  final String? proveedorId;
   final String? numeroFactura;
   final int cantidadInicial;
   final int cantidadActual;
@@ -6743,7 +6741,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
     required this.productoId,
     this.fechaFabricacion,
     this.fechaVencimiento,
-    required this.proveedorId,
+    this.proveedorId,
     this.numeroFactura,
     required this.cantidadInicial,
     required this.cantidadActual,
@@ -6766,7 +6764,9 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
     if (!nullToAbsent || fechaVencimiento != null) {
       map['fecha_vencimiento'] = Variable<DateTime>(fechaVencimiento);
     }
-    map['proveedor_id'] = Variable<String>(proveedorId);
+    if (!nullToAbsent || proveedorId != null) {
+      map['proveedor_id'] = Variable<String>(proveedorId);
+    }
     if (!nullToAbsent || numeroFactura != null) {
       map['numero_factura'] = Variable<String>(numeroFactura);
     }
@@ -6800,7 +6800,9 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
       fechaVencimiento: fechaVencimiento == null && nullToAbsent
           ? const Value.absent()
           : Value(fechaVencimiento),
-      proveedorId: Value(proveedorId),
+      proveedorId: proveedorId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(proveedorId),
       numeroFactura: numeroFactura == null && nullToAbsent
           ? const Value.absent()
           : Value(numeroFactura),
@@ -6838,7 +6840,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
       fechaVencimiento: serializer.fromJson<DateTime?>(
         json['fechaVencimiento'],
       ),
-      proveedorId: serializer.fromJson<String>(json['proveedorId']),
+      proveedorId: serializer.fromJson<String?>(json['proveedorId']),
       numeroFactura: serializer.fromJson<String?>(json['numeroFactura']),
       cantidadInicial: serializer.fromJson<int>(json['cantidadInicial']),
       cantidadActual: serializer.fromJson<int>(json['cantidadActual']),
@@ -6861,7 +6863,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
       'productoId': serializer.toJson<String>(productoId),
       'fechaFabricacion': serializer.toJson<DateTime?>(fechaFabricacion),
       'fechaVencimiento': serializer.toJson<DateTime?>(fechaVencimiento),
-      'proveedorId': serializer.toJson<String>(proveedorId),
+      'proveedorId': serializer.toJson<String?>(proveedorId),
       'numeroFactura': serializer.toJson<String?>(numeroFactura),
       'cantidadInicial': serializer.toJson<int>(cantidadInicial),
       'cantidadActual': serializer.toJson<int>(cantidadActual),
@@ -6882,7 +6884,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
     String? productoId,
     Value<DateTime?> fechaFabricacion = const Value.absent(),
     Value<DateTime?> fechaVencimiento = const Value.absent(),
-    String? proveedorId,
+    Value<String?> proveedorId = const Value.absent(),
     Value<String?> numeroFactura = const Value.absent(),
     int? cantidadInicial,
     int? cantidadActual,
@@ -6902,7 +6904,7 @@ class LoteTable extends DataClass implements Insertable<LoteTable> {
     fechaVencimiento: fechaVencimiento.present
         ? fechaVencimiento.value
         : this.fechaVencimiento,
-    proveedorId: proveedorId ?? this.proveedorId,
+    proveedorId: proveedorId.present ? proveedorId.value : this.proveedorId,
     numeroFactura: numeroFactura.present
         ? numeroFactura.value
         : this.numeroFactura,
@@ -7026,7 +7028,7 @@ class LotesCompanion extends UpdateCompanion<LoteTable> {
   final Value<String> productoId;
   final Value<DateTime?> fechaFabricacion;
   final Value<DateTime?> fechaVencimiento;
-  final Value<String> proveedorId;
+  final Value<String?> proveedorId;
   final Value<String?> numeroFactura;
   final Value<int> cantidadInicial;
   final Value<int> cantidadActual;
@@ -7061,7 +7063,7 @@ class LotesCompanion extends UpdateCompanion<LoteTable> {
     required String productoId,
     this.fechaFabricacion = const Value.absent(),
     this.fechaVencimiento = const Value.absent(),
-    required String proveedorId,
+    this.proveedorId = const Value.absent(),
     this.numeroFactura = const Value.absent(),
     this.cantidadInicial = const Value.absent(),
     this.cantidadActual = const Value.absent(),
@@ -7074,8 +7076,7 @@ class LotesCompanion extends UpdateCompanion<LoteTable> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        numeroLote = Value(numeroLote),
-       productoId = Value(productoId),
-       proveedorId = Value(proveedorId);
+       productoId = Value(productoId);
   static Insertable<LoteTable> custom({
     Expression<String>? id,
     Expression<String>? numeroLote,
@@ -7121,7 +7122,7 @@ class LotesCompanion extends UpdateCompanion<LoteTable> {
     Value<String>? productoId,
     Value<DateTime?>? fechaFabricacion,
     Value<DateTime?>? fechaVencimiento,
-    Value<String>? proveedorId,
+    Value<String?>? proveedorId,
     Value<String?>? numeroFactura,
     Value<int>? cantidadInicial,
     Value<int>? cantidadActual,
@@ -15423,7 +15424,7 @@ typedef $$LotesTableCreateCompanionBuilder =
       required String productoId,
       Value<DateTime?> fechaFabricacion,
       Value<DateTime?> fechaVencimiento,
-      required String proveedorId,
+      Value<String?> proveedorId,
       Value<String?> numeroFactura,
       Value<int> cantidadInicial,
       Value<int> cantidadActual,
@@ -15442,7 +15443,7 @@ typedef $$LotesTableUpdateCompanionBuilder =
       Value<String> productoId,
       Value<DateTime?> fechaFabricacion,
       Value<DateTime?> fechaVencimiento,
-      Value<String> proveedorId,
+      Value<String?> proveedorId,
       Value<String?> numeroFactura,
       Value<int> cantidadInicial,
       Value<int> cantidadActual,
@@ -15481,9 +15482,9 @@ final class $$LotesTableReferences
         $_aliasNameGenerator(db.lotes.proveedorId, db.proveedores.id),
       );
 
-  $$ProveedoresTableProcessedTableManager get proveedorId {
-    final $_column = $_itemColumn<String>('proveedor_id')!;
-
+  $$ProveedoresTableProcessedTableManager? get proveedorId {
+    final $_column = $_itemColumn<String>('proveedor_id');
+    if ($_column == null) return null;
     final manager = $$ProveedoresTableTableManager(
       $_db,
       $_db.proveedores,
@@ -16022,7 +16023,7 @@ class $$LotesTableTableManager
                 Value<String> productoId = const Value.absent(),
                 Value<DateTime?> fechaFabricacion = const Value.absent(),
                 Value<DateTime?> fechaVencimiento = const Value.absent(),
-                Value<String> proveedorId = const Value.absent(),
+                Value<String?> proveedorId = const Value.absent(),
                 Value<String?> numeroFactura = const Value.absent(),
                 Value<int> cantidadInicial = const Value.absent(),
                 Value<int> cantidadActual = const Value.absent(),
@@ -16058,7 +16059,7 @@ class $$LotesTableTableManager
                 required String productoId,
                 Value<DateTime?> fechaFabricacion = const Value.absent(),
                 Value<DateTime?> fechaVencimiento = const Value.absent(),
-                required String proveedorId,
+                Value<String?> proveedorId = const Value.absent(),
                 Value<String?> numeroFactura = const Value.absent(),
                 Value<int> cantidadInicial = const Value.absent(),
                 Value<int> cantidadActual = const Value.absent(),

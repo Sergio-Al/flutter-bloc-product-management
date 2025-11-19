@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_datasource.dart';
 import '../../../core/utils/logger.dart';
 
@@ -25,19 +24,15 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
             lote:lotes(*)
           ''');
 
-      if (lastSync != null) {
-        query = SupabaseDataSource.applySyncFilters(query, lastSync);
-      }
-
       if (tiendaId != null) {
-        query = query.eq('tienda_id', tiendaId) as PostgrestFilterBuilder<PostgrestList>;
+        query = query.eq('tienda_id', tiendaId);
       }
 
       if (almacenId != null) {
-        query = query.eq('almacen_id', almacenId) as PostgrestFilterBuilder<PostgrestList>;
+        query = query.eq('almacen_id', almacenId);
       }
 
-      final response = await query.order('producto_id');
+      final response = await query.order('producto_id', ascending: true);
 
       AppLogger.database('✅ ${response.length} inventarios obtenidos');
       return List<Map<String, dynamic>>.from(response);
@@ -118,13 +113,16 @@ class InventarioRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo inventarios con stock bajo');
 
-      var query = SupabaseDataSource.client.from(_tableName).select('''
-        *,
-        producto:productos(*)
-      ''').filter('cantidad_actual', 'lte', 'producto.stock_minimo');
+      var query = SupabaseDataSource.client
+          .from(_tableName)
+          .select('''
+            *,
+            producto:productos(*)
+          ''')
+          .filter('cantidad_actual', 'lte', 'producto.stock_minimo');
 
       if (tiendaId != null) {
-        query = query.eq('tienda_id', tiendaId) as PostgrestFilterBuilder<PostgrestList>;
+        query = query.eq('tienda_id', tiendaId);
       }
 
       final response = await query;

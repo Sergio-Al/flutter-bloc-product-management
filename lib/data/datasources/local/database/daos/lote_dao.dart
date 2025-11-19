@@ -137,13 +137,36 @@ class LoteDao extends DatabaseAccessor<AppDatabase> with _$LoteDaoMixin {
   }
 
   // Insertar lote
-  Future<int> insertLote(LoteTable lote) {
+  Future<int> insertLote(LoteTable lote) async {
+
+    // get all productos and proveedores to verify foreign keys
+    final allProductos = await select(productos).get();
+    final allProveedores = await select(proveedores).get();
+
+    print('Verifying foreign keys for lote insertion:');
+    print('Total productos in local DB: ${allProductos.length}');
+    print('Total proveedores in local DB: ${allProveedores.length}');
+
+    // Verify that producto exists in local database
+    final producto = await (select(productos)..where((t) => t.id.equals(lote.productoId))).getSingleOrNull();
+    if (producto == null) {
+      throw Exception('Producto with id ${lote.productoId} does not exist in local database. Please sync productos first.');
+    }
+
+    // Verify that proveedor exists if provided
+    if (lote.proveedorId != null) {
+      final proveedor = await (select(proveedores)..where((t) => t.id.equals(lote.proveedorId!))).getSingleOrNull();
+      if (proveedor == null) {
+        throw Exception('Proveedor with id ${lote.proveedorId} does not exist in local database. Please sync proveedores first.');
+      }
+    }
+
     return into(lotes).insert(
       LotesCompanion.insert(
         id: lote.id,
         numeroLote: lote.numeroLote,
         productoId: lote.productoId,
-        proveedorId: lote.proveedorId,
+        proveedorId: Value(lote.proveedorId),
         fechaFabricacion: Value(lote.fechaFabricacion),
         fechaVencimiento: Value(lote.fechaVencimiento),
         numeroFactura: Value(lote.numeroFactura),

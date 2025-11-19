@@ -16,19 +16,15 @@ class ProveedorRemoteDataSource extends SupabaseDataSource {
 
       var query = SupabaseDataSource.client.from(_tableName).select('*');
 
-      if (lastSync != null) {
-        query = SupabaseDataSource.applySyncFilters(query, lastSync);
-      }
-
       if (soloActivos == true) {
-        query = SupabaseDataSource.applyActiveFilter(query);
+        query = query.isFilter('deleted_at', null);
       }
 
       if (tipoMaterial != null) {
         query = query.eq('tipo_material', tipoMaterial);
       }
 
-      final response = await query.order('razon_social');
+      final response = await query.order('razon_social', ascending: true);
 
       AppLogger.database('✅ ${response.length} proveedores obtenidos');
       return List<Map<String, dynamic>>.from(response);

@@ -13,17 +13,15 @@ class TiendaRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo tiendas');
 
-      var query = SupabaseDataSource.client.from(_tableName).select('*');
-
-      if (lastSync != null) {
-        query = SupabaseDataSource.applySyncFilters(query, lastSync);
-      }
+      var query = SupabaseDataSource.client
+          .from(_tableName)
+          .select('*');
 
       if (soloActivas == true) {
-        query = SupabaseDataSource.applyActiveFilter(query);
+        query = query.isFilter('deleted_at', null);
       }
 
-      final response = await query.order('nombre');
+      final response = await query.order('nombre', ascending: true);
 
       AppLogger.database('✅ ${response.length} tiendas obtenidas');
       return List<Map<String, dynamic>>.from(response);

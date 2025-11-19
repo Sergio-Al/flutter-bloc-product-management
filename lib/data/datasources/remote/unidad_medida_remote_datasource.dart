@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_datasource.dart';
 import '../../../core/utils/logger.dart';
 

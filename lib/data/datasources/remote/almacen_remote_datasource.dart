@@ -21,19 +21,15 @@ class AlmacenRemoteDataSource extends SupabaseDataSource {
             tienda:tiendas(*)
           ''');
 
-      if (lastSync != null) {
-        query = SupabaseDataSource.applySyncFilters(query, lastSync);
-      }
-
       if (tiendaId != null) {
         query = query.eq('tienda_id', tiendaId);
       }
 
       if (soloActivos == true) {
-        query = SupabaseDataSource.applyActiveFilter(query);
+        query = query.isFilter('deleted_at', null);
       }
 
-      final response = await query.order('nombre');
+      final response = await query.order('nombre', ascending: true);
 
       AppLogger.database('✅ ${response.length} almacenes obtenidos');
       return List<Map<String, dynamic>>.from(response);

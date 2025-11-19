@@ -9,7 +9,7 @@ class Lotes extends Table {
   TextColumn get productoId => text().references(Productos, #id)();
   DateTimeColumn get fechaFabricacion => dateTime().nullable()();
   DateTimeColumn get fechaVencimiento => dateTime().nullable()();
-  TextColumn get proveedorId => text().references(Proveedores, #id)();
+  TextColumn get proveedorId => text().nullable().references(Proveedores, #id)();
   TextColumn get numeroFactura => text().nullable()();
   IntColumn get cantidadInicial => integer().withDefault(const Constant(0))();
   IntColumn get cantidadActual => integer().withDefault(const Constant(0))();

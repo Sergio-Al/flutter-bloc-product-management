@@ -20,7 +20,8 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo productos');
 
-      var query = SupabaseDataSource.client
+      // Build the query with filters BEFORE select
+      var filterQuery = SupabaseDataSource.client
           .from(_tableName)
           .select('''
             *,
@@ -29,10 +30,18 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
             proveedor_principal:proveedores(*)
           ''');
 
-      query = SupabaseDataSource.applySyncFilters(query, lastSync);
-      query = SupabaseDataSource.applyActiveFilter(query);
-      query = SupabaseDataSource.applyPagination(query, limit: limit, offset: offset);
-      query = SupabaseDataSource.applyOrdering(query, column: 'nombre', ascending: true);
+      // Apply filters after select (these work on PostgrestTransformBuilder)
+      var query = filterQuery
+          .isFilter('deleted_at', null)
+          .order('nombre', ascending: true);
+
+      if (limit != null) {
+        query = query.limit(limit);
+      }
+
+      if (offset != null) {
+        query = query.range(offset, offset + (limit ?? 10) - 1);
+      }
 
       final response = await query;
 

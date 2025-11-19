@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter_management_system/core/di/sync_constants.dart';
 import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/categoria_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/unidad_medida_remote_datasource.dart';
 import '../errors/failures.dart';
 import '../network/network_info.dart';
 import 'sync_status.dart';
@@ -15,7 +18,6 @@ import 'sync_item.dart';
 import 'conflict_resolver.dart' hide SyncConflict;
 import '../../data/datasources/local/database/app_database.dart';
 import '../../data/datasources/remote/producto_remote_datasource.dart';
-import '../../domain/entities/producto.dart';
 
 /// SyncManager - Coordina la sincronización offline-first
 ///
@@ -32,6 +34,8 @@ class SyncManager {
   final TiendaRemoteDataSource _tiendaRemote;
   final ProveedorRemoteDataSource _proveedorRemote;
   final LoteRemoteDataSource _loteRemote;
+  final CategoriaRemoteDataSource _categoriaRemote;
+  final UnidadMedidaRemoteDataSource _unidadMedidaRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -51,6 +55,8 @@ class SyncManager {
     required TiendaRemoteDataSource tiendaRemote,
     required ProveedorRemoteDataSource proveedorRemote,
     required LoteRemoteDataSource loteRemote,
+    required CategoriaRemoteDataSource categoriaRemote,
+    required UnidadMedidaRemoteDataSource unidadMedidaRemote,
     ConflictResolver? conflictResolver,
   }) : _localDb = localDb,
        _syncQueue = syncQueue,
@@ -60,6 +66,8 @@ class SyncManager {
        _tiendaRemote = tiendaRemote,
        _proveedorRemote = proveedorRemote,
        _loteRemote = loteRemote,
+       _categoriaRemote = categoriaRemote,
+       _unidadMedidaRemote = unidadMedidaRemote,
        _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
@@ -96,7 +104,6 @@ class SyncManager {
 
     try {
       final pendingItems = _syncQueue.getPending();
-      int successCount = 0;
       int errorCount = 0;
       final conflicts = <SyncConflict>[];
 
@@ -117,7 +124,6 @@ class SyncManager {
             }
           },
           (_) {
-            successCount++;
             _syncQueue.remove(item.id);
           },
         );
@@ -453,8 +459,299 @@ class SyncManager {
 
   /// Traer cambios del servidor a local (pull)
   Future<void> _pullFromServer() async {
-    // TODO: Implementar lógica para traer cambios del servidor
-    // y actualizar la base de datos local
+    try {
+      AppLogger.info('🔽 Iniciando pull desde servidor...');
+
+      // 1. Sync reference data first (order matters due to foreign keys)
+      await _pullCategorias();
+      await _pullUnidadesMedida();
+      
+      // 2. Sync master data
+      await _pullTiendas();
+      await _pullProveedores();
+      await _pullAlmacenes();
+      
+      // 3. Sync transactional data
+      await _pullProductos();
+      await _pullLotes();
+      
+      AppLogger.info('✅ Pull desde servidor completado');
+    } catch (e) {
+      AppLogger.error('❌ Error en pull desde servidor: $e');
+      rethrow;
+    }
+  }
+
+  /// Pull categorías from server
+  Future<void> _pullCategorias() async {
+    try {
+      final remoteData = await _categoriaRemote.getCategorias();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} categorías...');
+      
+      for (final data in remoteData) {
+        final categoria = CategoriasCompanion(
+          id: Value(data['id'] as String),
+          nombre: Value(data['nombre'] as String),
+          codigo: Value(data['codigo'] as String? ?? ''),
+          descripcion: Value(data['descripcion'] as String?),
+          categoriaPadreId: Value(data['categoria_padre_id'] as String?),
+          requiereLote: Value(data['requiere_lote'] as bool? ?? false),
+          requiereCertificacion: Value(data['requiere_certificacion'] as bool? ?? false),
+          activo: Value(data['activo'] as bool? ?? true),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+        );
+        
+        await _localDb.into(_localDb.categorias).insertOnConflictUpdate(categoria);
+      }
+      
+      AppLogger.sync('✅ Categorías sincronizadas');
+    } catch (e) {
+      AppLogger.error('Error syncing categorías: $e');
+    }
+  }
+
+  /// Pull unidades medida from server
+  Future<void> _pullUnidadesMedida() async {
+    try {
+      final remoteData = await _unidadMedidaRemote.getUnidades();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} unidades de medida...');
+      
+      for (final data in remoteData) {
+        final unidad = UnidadesMedidaCompanion(
+          id: Value(data['id'] as String),
+          nombre: Value(data['nombre'] as String),
+          abreviatura: Value(data['abreviatura'] as String),
+          tipo: Value(data['tipo'] as String),
+          factorConversion: Value(data['factor_conversion'] as double? ?? 1.0),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+        );
+        
+        await _localDb.into(_localDb.unidadesMedida).insertOnConflictUpdate(unidad);
+      }
+      
+      AppLogger.sync('✅ Unidades de medida sincronizadas');
+    } catch (e) {
+      AppLogger.error('Error syncing unidades medida: $e');
+    }
+  }
+
+  /// Pull tiendas from server
+  Future<void> _pullTiendas() async {
+    try {
+      final remoteData = await _tiendaRemote.getTiendas();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} tiendas...');
+      
+      for (final data in remoteData) {
+        final tienda = TiendasCompanion(
+          id: Value(data['id'] as String),
+          nombre: Value(data['nombre'] as String),
+          codigo: Value(data['codigo'] as String),
+          direccion: Value(data['direccion'] as String? ?? ''),
+          ciudad: Value(data['ciudad'] as String? ?? ''),
+          departamento: Value(data['departamento'] as String? ?? ''),
+          telefono: Value(data['telefono'] as String?),
+          horarioAtencion: Value(data['horario_atencion'] as String?),
+          activo: Value(data['activo'] as bool? ?? true),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+          deletedAt: Value(data['deleted_at'] != null 
+            ? DateTime.parse(data['deleted_at'] as String) 
+            : null),
+        );
+        
+        await _localDb.into(_localDb.tiendas).insertOnConflictUpdate(tienda);
+      }
+      
+      AppLogger.sync('✅ Tiendas sincronizadas');
+    } catch (e) {
+      AppLogger.error('Error syncing tiendas: $e');
+    }
+  }
+
+  /// Pull proveedores from server
+  Future<void> _pullProveedores() async {
+    try {
+      final remoteData = await _proveedorRemote.getProveedores();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} proveedores...');
+      
+      for (final data in remoteData) {
+        final proveedor = ProveedoresCompanion(
+          id: Value(data['id'] as String),
+          razonSocial: Value(data['razon_social'] as String),
+          nit: Value(data['nit'] as String? ?? ''),
+          direccion: Value(data['direccion'] as String?),
+          ciudad: Value(data['ciudad'] as String?),
+          telefono: Value(data['telefono'] as String?),
+          email: Value(data['email'] as String?),
+          nombreContacto: Value(data['nombre_contacto'] as String?),
+          tipoMaterial: Value(data['tipo_material'] as String?),
+          diasCredito: Value(data['dias_credito'] as int? ?? 0),
+          activo: Value(data['activo'] as bool? ?? true),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+          deletedAt: Value(data['deleted_at'] != null 
+            ? DateTime.parse(data['deleted_at'] as String) 
+            : null),
+        );
+        
+        await _localDb.into(_localDb.proveedores).insertOnConflictUpdate(proveedor);
+      }
+      
+      AppLogger.sync('✅ Proveedores sincronizados');
+    } catch (e) {
+      AppLogger.error('Error syncing proveedores: $e');
+    }
+  }
+
+  /// Pull almacenes from server
+  Future<void> _pullAlmacenes() async {
+    try {
+      final remoteData = await _almacenRemote.getAlmacenes();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} almacenes...');
+      
+      for (final data in remoteData) {
+        final almacen = AlmacenesCompanion(
+          id: Value(data['id'] as String),
+          nombre: Value(data['nombre'] as String),
+          codigo: Value(data['codigo'] as String),
+          ubicacion: Value(data['ubicacion'] as String? ?? ''),
+          tipo: Value(data['tipo'] as String),
+          capacidadM3: Value(data['capacidad_m3'] as double?),
+          areaM2: Value(data['area_m2'] as double?),
+          tiendaId: Value(data['tienda_id'] as String? ?? ''),
+          activo: Value(data['activo'] as bool? ?? true),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+          deletedAt: Value(data['deleted_at'] != null 
+            ? DateTime.parse(data['deleted_at'] as String) 
+            : null),
+        );
+        
+        await _localDb.into(_localDb.almacenes).insertOnConflictUpdate(almacen);
+      }
+      
+      AppLogger.sync('✅ Almacenes sincronizados');
+    } catch (e) {
+      AppLogger.error('Error syncing almacenes: $e');
+    }
+  }
+
+  /// Pull productos from server
+  Future<void> _pullProductos() async {
+    try {
+      final remoteData = await _productoRemote.getProductos();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} productos...');
+      
+      for (final data in remoteData) {
+        final producto = ProductosCompanion(
+          id: Value(data['id'] as String),
+          nombre: Value(data['nombre'] as String),
+          codigo: Value(data['codigo'] as String),
+          descripcion: Value(data['descripcion'] as String?),
+          categoriaId: Value(data['categoria_id'] as String? ?? ''),
+          unidadMedidaId: Value(data['unidad_medida_id'] as String? ?? ''),
+          proveedorPrincipalId: Value(data['proveedor_principal_id'] as String?),
+          precioCompra: Value(data['precio_compra'] as double? ?? 0.0),
+          precioVenta: Value(data['precio_venta'] as double? ?? 0.0),
+          pesoUnitarioKg: Value(data['peso_unitario_kg'] as double?),
+          volumenUnitarioM3: Value(data['volumen_unitario_m3'] as double?),
+          stockMinimo: Value(data['stock_minimo'] as int? ?? 0),
+          stockMaximo: Value(data['stock_maximo'] as int? ?? 0),
+          marca: Value(data['marca'] as String?),
+          gradoCalidad: Value(data['grado_calidad'] as String?),
+          normaTecnica: Value(data['norma_tecnica'] as String?),
+          requiereAlmacenCubierto: Value(data['requiere_almacen_cubierto'] as bool? ?? false),
+          materialPeligroso: Value(data['material_peligroso'] as bool? ?? false),
+          imagenUrl: Value(data['imagen_url'] as String?),
+          fichaTecnicaUrl: Value(data['ficha_tecnica_url'] as String?),
+          activo: Value(data['activo'] as bool? ?? true),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+          deletedAt: Value(data['deleted_at'] != null 
+            ? DateTime.parse(data['deleted_at'] as String) 
+            : null),
+        );
+        
+        await _localDb.into(_localDb.productos).insertOnConflictUpdate(producto);
+      }
+      
+      AppLogger.sync('✅ Productos sincronizados');
+    } catch (e) {
+      AppLogger.error('Error syncing productos: $e');
+    }
+  }
+
+  /// Pull lotes from server
+  Future<void> _pullLotes() async {
+    try {
+      final remoteData = await _loteRemote.getLotes();
+      
+      AppLogger.sync('Sincronizando ${remoteData.length} lotes...');
+      
+      for (final data in remoteData) {
+        final lote = LotesCompanion(
+          id: Value(data['id'] as String),
+          numeroLote: Value(data['numero_lote'] as String),
+          productoId: Value(data['producto_id'] as String),
+          proveedorId: Value(data['proveedor_id'] as String?),
+          cantidadInicial: Value(data['cantidad_inicial'] as int? ?? 0),
+          cantidadActual: Value(data['cantidad'] as int? ?? 0),
+          fechaFabricacion: Value(data['fecha_fabricacion'] != null 
+            ? DateTime.parse(data['fecha_fabricacion'] as String) 
+            : null),
+          fechaVencimiento: Value(data['fecha_vencimiento'] != null 
+            ? DateTime.parse(data['fecha_vencimiento'] as String) 
+            : null),
+          certificadoCalidadUrl: Value(data['certificado_calidad'] as String?),
+          numeroFactura: Value(data['numero_factura'] as String?),
+          observaciones: const Value.absent(),
+          createdAt: Value(data['created_at'] != null 
+            ? DateTime.parse(data['created_at'] as String) 
+            : DateTime.now()),
+          updatedAt: Value(data['updated_at'] != null 
+            ? DateTime.parse(data['updated_at'] as String) 
+            : DateTime.now()),
+        );
+        
+        await _localDb.into(_localDb.lotes).insertOnConflictUpdate(lote);
+      }
+      
+      AppLogger.sync('✅ Lotes sincronizados');
+    } catch (e) {
+      AppLogger.error('Error syncing lotes: $e');
+    }
   }
 
   /// Agregar cambio a la cola de sincronización

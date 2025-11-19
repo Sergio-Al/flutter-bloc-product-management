@@ -12,6 +12,8 @@ import 'package:flutter_management_system/data/datasources/remote/producto_remot
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/categoria_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/unidad_medida_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
@@ -192,6 +194,14 @@ Future<void> setupDependencies() async {
     () => LoteRemoteDataSource(),
   );
 
+  getIt.registerLazySingleton<CategoriaRemoteDataSource>(
+    () => CategoriaRemoteDataSource(),
+  );
+
+  getIt.registerLazySingleton<UnidadMedidaRemoteDataSource>(
+    () => UnidadMedidaRemoteDataSource(),
+  );
+
   // ============================================================================
   // Core - Sync System (Must be after Remote DataSources)
   // ============================================================================
@@ -207,7 +217,8 @@ Future<void> setupDependencies() async {
       tiendaRemote: getIt<TiendaRemoteDataSource>(),
       proveedorRemote: getIt<ProveedorRemoteDataSource>(),
       loteRemote: getIt<LoteRemoteDataSource>(),
-      // TODO: Add other remote datasources as they're created
+      categoriaRemote: getIt<CategoriaRemoteDataSource>(),
+      unidadMedidaRemote: getIt<UnidadMedidaRemoteDataSource>(),
     ),
   );
 

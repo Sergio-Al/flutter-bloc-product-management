@@ -61,8 +61,8 @@ abstract class SupabaseDataSource {
   }
 
   /// Construye filtros de sincronización para obtener solo datos actualizados
-  static PostgrestFilterBuilder<PostgrestList> applySyncFilters(
-    PostgrestFilterBuilder<PostgrestList> query,
+  static PostgrestFilterBuilder<List<Map<String, dynamic>>> applySyncFilters(
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> query,
     DateTime? lastSync,
   ) {
     if (lastSync != null) {
@@ -72,29 +72,28 @@ abstract class SupabaseDataSource {
   }
 
   /// Construye filtros de paginación
-  static PostgrestFilterBuilder<PostgrestList> applyPagination(
-    PostgrestFilterBuilder<PostgrestList> query, {
+  static PostgrestTransformBuilder<List<Map<String, dynamic>>> applyPagination(
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> query, {
     int? limit,
     int? offset,
   }) {
+    PostgrestTransformBuilder<List<Map<String, dynamic>>> result = query;
     if (limit != null) {
-      query = query.limit(limit) as PostgrestFilterBuilder<PostgrestList>;
+      result = result.limit(limit);
     }
     if (offset != null) {
-      query = query.range(offset, offset + (limit ?? 10) - 1)
-          as PostgrestFilterBuilder<PostgrestList>;
+      result = result.range(offset, offset + (limit ?? 10) - 1);
     }
-    return query;
+    return result;
   }
 
   /// Construye filtros de ordenamiento
-  static PostgrestFilterBuilder<PostgrestList> applyOrdering(
-    PostgrestFilterBuilder<PostgrestList> query, {
+  static PostgrestTransformBuilder<List<Map<String, dynamic>>> applyOrdering(
+    PostgrestTransformBuilder<List<Map<String, dynamic>>> query, {
     String column = 'created_at',
     bool ascending = false,
   }) {
-    return query.order(column, ascending: ascending)
-        as PostgrestFilterBuilder<PostgrestList>;
+    return query.order(column, ascending: ascending);
   }
 
   /// Construye filtros de búsqueda

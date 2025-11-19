@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/di/injection_container.dart';
+import '../../../core/sync/sync_manager.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
@@ -30,13 +32,66 @@ class HomePage extends StatelessWidget {
               // Sync indicator
               IconButton(
                 icon: const Icon(Icons.sync),
-                onPressed: () {
-                  // TODO: Trigger sync
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sincronización iniciada')),
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  
+                  // Show loading indicator
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Row(
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Text('Sincronizando datos desde servidor...'),
+                        ],
+                      ),
+                      duration: Duration(seconds: 30),
+                    ),
+                  );
+
+                  // Trigger sync
+                  final syncManager = getIt<SyncManager>();
+                  final result = await syncManager.syncAll();
+
+                  // Hide loading indicator
+                  messenger.hideCurrentSnackBar();
+
+                  // Show result
+                  result.fold(
+                    (failure) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Error en sincronización: ${failure.message}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 5),
+                        ),
+                      );
+                    },
+                    (_) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 16),
+                              Text('✅ Sincronización completada exitosamente'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    },
                   );
                 },
-                tooltip: 'Sincronizar',
+                tooltip: 'Sincronizar con servidor',
               ),
               // Settings
               IconButton(
@@ -213,6 +268,17 @@ class HomePage extends StatelessWidget {
                           );
                         },
                       ),
+                      // lotes page
+                      _buildActionCard(
+                        context,
+                        icon: Icons.all_inbox,
+                        title: 'Lotes',
+                        subtitle: 'Gestionar lotes',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/lotes');
+                        },
+                      ),
+                        
                     ],
                   ),
                 ],

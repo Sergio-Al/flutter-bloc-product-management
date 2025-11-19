@@ -9,7 +9,7 @@ extension LoteTableMapper on LoteTable {
       productoId: productoId,
       fechaFabricacion: fechaFabricacion,
       fechaVencimiento: fechaVencimiento,
-      proveedorId: proveedorId.isEmpty ? null : proveedorId,
+      proveedorId: proveedorId?.isEmpty == true ? null : proveedorId,
       numeroFactura: numeroFactura?.isEmpty == true ? null : numeroFactura,
       cantidadInicial: cantidadInicial,
       cantidadActual: cantidadActual,

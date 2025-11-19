@@ -19,18 +19,19 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo movimientos');
 
-      var query = SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
-            *,
-            producto:productos(*),
-            inventario:inventarios(*),
-            lote:lotes(*),
-            tienda_origen:tiendas!movimientos_tienda_origen_id_fkey(*),
-            tienda_destino:tiendas!movimientos_tienda_destino_id_fkey(*),
-            proveedor:proveedores(*),
-            usuario:usuarios(*)
-          ''');
+      PostgrestFilterBuilder<List<Map<String, dynamic>>> query = 
+          SupabaseDataSource.client
+              .from(_tableName)
+              .select('''
+                *,
+                producto:productos(*),
+                inventario:inventarios(*),
+                lote:lotes(*),
+                tienda_origen:tiendas!movimientos_tienda_origen_id_fkey(*),
+                tienda_destino:tiendas!movimientos_tienda_destino_id_fkey(*),
+                proveedor:proveedores(*),
+                usuario:usuarios(*)
+              ''');
 
       if (lastSync != null) {
         query = SupabaseDataSource.applySyncFilters(query, lastSync);
@@ -52,10 +53,10 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
         query = query.lte('fecha_movimiento', fechaHasta.toIso8601String());
       }
 
-      query = SupabaseDataSource.applyPagination(query, limit: limit, offset: offset);
-      query = SupabaseDataSource.applyOrdering(query, column: 'fecha_movimiento', ascending: false);
+      var transformedQuery = SupabaseDataSource.applyPagination(query, limit: limit, offset: offset);
+      transformedQuery = SupabaseDataSource.applyOrdering(transformedQuery, column: 'fecha_movimiento', ascending: false);
 
-      final response = await query;
+      final response = await transformedQuery;
 
       AppLogger.database('✅ ${response.length} movimientos obtenidos');
       return List<Map<String, dynamic>>.from(response);

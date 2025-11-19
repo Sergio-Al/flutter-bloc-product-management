@@ -1,8 +1,11 @@
 import 'package:flutter_management_system/core/sync/sync_status.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/categoria_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/unidad_medida_remote_datasource.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sync_manager.dart';
 import 'sync_queue.dart';
@@ -22,6 +25,9 @@ class SyncService {
     AlmacenRemoteDataSource almacenRemote,
     TiendaRemoteDataSource tiendaRemote,
     ProveedorRemoteDataSource proveedorRemote,
+    LoteRemoteDataSource loteRemote,
+    CategoriaRemoteDataSource categoriaRemote,
+    UnidadMedidaRemoteDataSource unidadMedidaRemote,
   ) {
     final queue = SyncQueue(prefs);
     _syncManager = SyncManager(
@@ -32,6 +38,9 @@ class SyncService {
       almacenRemote: almacenRemote,
       tiendaRemote: tiendaRemote,
       proveedorRemote: proveedorRemote,
+      loteRemote: loteRemote,
+      categoriaRemote: categoriaRemote,
+      unidadMedidaRemote: unidadMedidaRemote,
     );
   }
 
@@ -43,6 +52,9 @@ class SyncService {
     required AlmacenRemoteDataSource almacenRemote,
     required TiendaRemoteDataSource tiendaRemote,
     required ProveedorRemoteDataSource proveedorRemote,
+    required LoteRemoteDataSource loteRemote,
+    required CategoriaRemoteDataSource categoriaRemote,
+    required UnidadMedidaRemoteDataSource unidadMedidaRemote,
   }) async {
     _instance ??= SyncService._internal(
       database,
@@ -52,6 +64,9 @@ class SyncService {
       almacenRemote,
       tiendaRemote,
       proveedorRemote,
+      loteRemote,
+      categoriaRemote,
+      unidadMedidaRemote,
     );
     return _instance!;
   }

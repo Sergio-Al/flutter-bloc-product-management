@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_management_system/core/errors/failures.dart';
 import 'package:flutter_management_system/core/network/network_info.dart';
 import 'package:flutter_management_system/core/sync/sync_item.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
 import 'package:flutter_management_system/data/mappers/lote_mapper.dart';
@@ -43,6 +44,7 @@ class LoteRepositoryImpl extends LoteRepository {
 
       return Right(lote);
     } catch (e) {
+      AppLogger.error('LoteRepositoryImpl.createLote', e);
       return Left(CacheFailure(message: 'Failed to create lote: $e'));
     }
   }
