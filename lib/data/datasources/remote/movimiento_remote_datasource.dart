@@ -3,6 +3,10 @@ import 'supabase_datasource.dart';
 import '../../../core/utils/logger.dart';
 
 /// Datasource remoto para operaciones de movimientos con Supabase
+/// 
+/// ⚠️ IMPORTANTE: NO incluye método de eliminación (delete)
+/// Los movimientos son registros de auditoría permanentes que no deben eliminarse.
+/// Usar cancelarMovimiento() para marcar como CANCELADO en su lugar.
 class MovimientoRemoteDataSource extends SupabaseDataSource {
   static const String _tableName = 'movimientos';
 

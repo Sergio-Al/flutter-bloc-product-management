@@ -134,5 +134,9 @@ abstract class MovimientoRepository {
   Future<Either<Failure, Movimiento>> marcarComoSincronizado(String id);
 
   /// Delete movement
+  /// ⚠️ WARNING: Movimientos should NOT be deleted as they are audit records.
+  /// This method will return an error. Use cancelarMovimiento() instead.
+  /// Only kept for interface compatibility.
+  @Deprecated('Use cancelarMovimiento() instead. Movimientos are audit records and should not be deleted.')
   Future<Either<Failure, Unit>> deleteMovimiento(String id);
 }

@@ -9,6 +9,13 @@ part 'movimiento_dao.g.dart';
 class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMixin {
   MovimientoDao(AppDatabase db) : super(db);
 
+  // ⚠️ NOTA IMPORTANTE: NO HAY MÉTODO deleteMovimiento()
+  // Los movimientos son registros de auditoría y NO deben eliminarse.
+  // - Requeridos para cumplimiento legal (autoridades fiscales)
+  // - Necesarios para integridad de inventario
+  // - Críticos para registros contables
+  // Usar updateEstadoMovimiento() para cambiar a 'CANCELADO' en su lugar.
+
   // Obtener todos los movimientos
   Future<List<MovimientoTable>> getAllMovimientos() {
     return (select(movimientos)..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)])).get();
@@ -22,6 +29,11 @@ class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMi
         .get();
   }
 
+  // Obtener movimientos por id
+  Future<MovimientoTable?> getMovimientoById(String id) {
+    return (select(movimientos)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+  }
+
   // Obtener movimientos por tienda
   Future<List<MovimientoTable>> getMovimientosByTienda(String tiendaId) {
     return (select(movimientos)
@@ -29,6 +41,13 @@ class MovimientoDao extends DatabaseAccessor<AppDatabase> with _$MovimientoDaoMi
               tbl.tiendaOrigenId.equals(tiendaId) | tbl.tiendaDestinoId.equals(tiendaId))
           ..orderBy([(t) => OrderingTerm.desc(t.fechaMovimiento)]))
         .get();
+  }
+
+  // Obtener movimientos por numero de movimiento
+  Future<MovimientoTable?> getMovimientoByNumero(String numeroMovimiento) {
+    return (select(movimientos)
+          ..where((tbl) => tbl.numeroMovimiento.equals(numeroMovimiento)))
+        .getSingleOrNull();
   }
 
   // Obtener movimientos pendientes de sincronización
