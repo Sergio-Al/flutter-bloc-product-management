@@ -6,27 +6,33 @@ import 'package:flutter_management_system/data/datasources/local/database/daos/a
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/lote_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
 import 'package:flutter_management_system/domain/repositories/proveedor_repository.dart';
 import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
+import 'package:flutter_management_system/domain/repositories/lote_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/proveedores/proveedores_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/tienda/tienda_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/lotes/lote_usecases.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/lote/lote_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -182,6 +188,10 @@ Future<void> setupDependencies() async {
     () => ProveedorRemoteDataSource(),
   );
 
+  getIt.registerLazySingleton<LoteRemoteDataSource>(
+    () => LoteRemoteDataSource(),
+  );
+
   // ============================================================================
   // Core - Sync System (Must be after Remote DataSources)
   // ============================================================================
@@ -196,6 +206,7 @@ Future<void> setupDependencies() async {
       almacenRemote: getIt<AlmacenRemoteDataSource>(),
       tiendaRemote: getIt<TiendaRemoteDataSource>(),
       proveedorRemote: getIt<ProveedorRemoteDataSource>(),
+      loteRemote: getIt<LoteRemoteDataSource>(),
       // TODO: Add other remote datasources as they're created
     ),
   );
@@ -557,6 +568,119 @@ Future<void> setupDependencies() async {
       updateProveedor: getIt<UpdateProveedorUsecase>(),
       deleteProveedor: getIt<DeleteProveedorUsecase>(),
       toggleProveedorActivo: getIt<ToggleProveedorActivoUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Lotes (Local)
+  // ============================================================================
+
+  getIt.registerLazySingleton<LoteDao>(
+    () => getIt<AppDatabase>().loteDao,
+  );
+
+  // ============================================================================
+  // Repositories - Lotes
+  // ============================================================================
+  getIt.registerLazySingleton<LoteRepository>(
+    () => LoteRepositoryImpl(
+      remoteDataSource: getIt<LoteRemoteDataSource>(),
+      loteDao: getIt<LoteDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Lotes
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetLotesUsecase>(
+    () => GetLotesUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLoteByIdUsecase>(
+    () => GetLoteByIdUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLoteByNumeroUsecase>(
+    () => GetLoteByNumeroUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<SearchLotesUsecase>(
+    () => SearchLotesUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesByProductoUsecase>(
+    () => GetLotesByProductoUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesByProveedorUsecase>(
+    () => GetLotesByProveedorUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesByFacturaUsecase>(
+    () => GetLotesByFacturaUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesConStockUsecase>(
+    () => GetLotesConStockUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesVaciosUsecase>(
+    () => GetLotesVaciosUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesVencidosUsecase>(
+    () => GetLotesVencidosUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesPorVencerUsecase>(
+    () => GetLotesPorVencerUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetLotesConCertificadoUsecase>(
+    () => GetLotesConCertificadoUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<CreateLoteUsecase>(
+    () => CreateLoteUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateLoteUsecase>(
+    () => UpdateLoteUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateCantidadLoteUsecase>(
+    () => UpdateCantidadLoteUsecase(getIt<LoteRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteLoteUsecase>(
+    () => DeleteLoteUsecase(getIt<LoteRepository>()),
+  );
+
+  // ============================================================================
+  // BLoCs - Lotes
+  // ============================================================================
+
+  getIt.registerFactory<LoteBloc>(
+    () => LoteBloc(
+      getLotes: getIt<GetLotesUsecase>(),
+      getLoteById: getIt<GetLoteByIdUsecase>(),
+      getLoteByNumero: getIt<GetLoteByNumeroUsecase>(),
+      searchLotes: getIt<SearchLotesUsecase>(),
+      getLotesByProducto: getIt<GetLotesByProductoUsecase>(),
+      getLotesByProveedor: getIt<GetLotesByProveedorUsecase>(),
+      getLotesByFactura: getIt<GetLotesByFacturaUsecase>(),
+      getLotesConStock: getIt<GetLotesConStockUsecase>(),
+      getLotesVacios: getIt<GetLotesVaciosUsecase>(),
+      getLotesVencidos: getIt<GetLotesVencidosUsecase>(),
+      getLotesPorVencer: getIt<GetLotesPorVencerUsecase>(),
+      getLotesConCertificado: getIt<GetLotesConCertificadoUsecase>(),
+      createLote: getIt<CreateLoteUsecase>(),
+      updateLote: getIt<UpdateLoteUsecase>(),
+      updateCantidadLote: getIt<UpdateCantidadLoteUsecase>(),
+      deleteLote: getIt<DeleteLoteUsecase>(),
     ),
   );
 }
