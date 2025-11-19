@@ -1,6 +1,7 @@
 import 'package:flutter_management_system/core/sync/sync_status.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/categoria_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
@@ -28,6 +29,7 @@ class SyncService {
     LoteRemoteDataSource loteRemote,
     CategoriaRemoteDataSource categoriaRemote,
     UnidadMedidaRemoteDataSource unidadMedidaRemote,
+    InventarioRemoteDataSource inventarioRemote,
   ) {
     final queue = SyncQueue(prefs);
     _syncManager = SyncManager(
@@ -41,6 +43,7 @@ class SyncService {
       loteRemote: loteRemote,
       categoriaRemote: categoriaRemote,
       unidadMedidaRemote: unidadMedidaRemote,
+      inventarioRemote: inventarioRemote,
     );
   }
 
@@ -55,6 +58,7 @@ class SyncService {
     required LoteRemoteDataSource loteRemote,
     required CategoriaRemoteDataSource categoriaRemote,
     required UnidadMedidaRemoteDataSource unidadMedidaRemote,
+    required InventarioRemoteDataSource inventarioRemote,
   }) async {
     _instance ??= SyncService._internal(
       database,
@@ -67,6 +71,7 @@ class SyncService {
       loteRemote,
       categoriaRemote,
       unidadMedidaRemote,
+      inventarioRemote,
     );
     return _instance!;
   }

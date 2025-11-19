@@ -87,4 +87,23 @@ class Inventario extends Equatable {
   String toString() {
     return 'Inventario(id: $id, productoId: $productoId, cantidadActual: $cantidadActual, cantidadDisponible: $cantidadDisponible)';
   }
+
+  // Convert to JSON (for sync or other purposes)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'productoId': productoId,
+      'almacenId': almacenId,
+      'tiendaId': tiendaId,
+      'loteId': loteId,
+      'cantidadActual': cantidadActual,
+      'cantidadReservada': cantidadReservada,
+      'cantidadDisponible': cantidadDisponible,
+      'valorTotal': valorTotal,
+      'ubicacionFisica': ubicacionFisica,
+      'ultimaActualizacion': ultimaActualizacion?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
 }

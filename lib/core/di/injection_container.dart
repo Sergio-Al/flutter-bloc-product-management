@@ -3,11 +3,13 @@ import 'package:flutter_management_system/core/sync/sync_manager.dart';
 import 'package:flutter_management_system/core/sync/sync_queue.dart';
 import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/inventario_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
@@ -15,22 +17,26 @@ import 'package:flutter_management_system/data/datasources/remote/lote_remote_da
 import 'package:flutter_management_system/data/datasources/remote/categoria_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/unidad_medida_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/inventario_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/lote_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
+import 'package:flutter_management_system/domain/repositories/inventario_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
 import 'package:flutter_management_system/domain/repositories/proveedor_repository.dart';
 import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
 import 'package:flutter_management_system/domain/repositories/lote_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/inventarios/inventario_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/proveedores/proveedores_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/tienda/tienda_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/lotes/lote_usecases.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/inventario/inventario_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
@@ -219,6 +225,7 @@ Future<void> setupDependencies() async {
       loteRemote: getIt<LoteRemoteDataSource>(),
       categoriaRemote: getIt<CategoriaRemoteDataSource>(),
       unidadMedidaRemote: getIt<UnidadMedidaRemoteDataSource>(),
+      inventarioRemote: getIt<InventarioRemoteDataSource>(),
     ),
   );
 
@@ -586,9 +593,7 @@ Future<void> setupDependencies() async {
   // Data sources - Lotes (Local)
   // ============================================================================
 
-  getIt.registerLazySingleton<LoteDao>(
-    () => getIt<AppDatabase>().loteDao,
-  );
+  getIt.registerLazySingleton<LoteDao>(() => getIt<AppDatabase>().loteDao);
 
   // ============================================================================
   // Repositories - Lotes
@@ -692,6 +697,115 @@ Future<void> setupDependencies() async {
       updateLote: getIt<UpdateLoteUsecase>(),
       updateCantidadLote: getIt<UpdateCantidadLoteUsecase>(),
       deleteLote: getIt<DeleteLoteUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Inventarios (Local)
+  // ============================================================================
+
+  getIt.registerLazySingleton<InventarioDao>(
+    () => getIt<AppDatabase>().inventarioDao,
+  );
+
+  // ============================================================================
+  // Repositories - Inventarios
+  // ============================================================================
+  getIt.registerLazySingleton<InventarioRepository>(
+    () => InventarioRepositoryImpl(
+      remoteDataSource: getIt<InventarioRemoteDataSource>(),
+      inventarioDao: getIt<InventarioDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Inventarios
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetInventariosUsecase>(
+    () => GetInventariosUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventarioByIdUsecase>(
+    () => GetInventarioByIdUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosByProductoUsecase>(
+    () => GetInventariosByProductoUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosByAlmacenUsecase>(
+    () => GetInventariosByAlmacenUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosByLoteUsecase>(
+    () => GetInventariosByLoteUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosByTiendaUsecase>(
+    () => GetInventariosByTiendaUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosDisponiblesUsecase>(
+    () => GetInventariosDisponiblesUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetInventariosStockBajoUsecase>(
+    () => GetInventariosStockBajoUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<CreateInventarioUsecase>(
+    () => CreateInventarioUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateInventarioUsecase>(
+    () => UpdateInventarioUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateStockUsecase>(
+    () => UpdateStockUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<ReservarStockUsecase>(
+    () => ReservarStockUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<LiberarStockUsecase>(
+    () => LiberarStockUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<DeleteInventarioUsecase>(
+    () => DeleteInventarioUsecase(getIt<InventarioRepository>()),
+  );
+
+  getIt.registerLazySingleton<AjustarInventarioUsecase>(
+    () => AjustarInventarioUsecase(getIt<InventarioRepository>()),
+  );
+
+  // ============================================================================
+  // BLoCs - Inventarios
+  // ============================================================================
+
+  getIt.registerFactory<InventarioBloc>(
+    () => InventarioBloc(
+      getInventarios: getIt<GetInventariosUsecase>(),
+      getInventarioById: getIt<GetInventarioByIdUsecase>(),
+      getInventariosByProducto: getIt<GetInventariosByProductoUsecase>(),
+      getInventariosByAlmacen: getIt<GetInventariosByAlmacenUsecase>(),
+      getInventariosByLote: getIt<GetInventariosByLoteUsecase>(),
+      getInventariosByTienda: getIt<GetInventariosByTiendaUsecase>(),
+      getInventariosDisponibles: getIt<GetInventariosDisponiblesUsecase>(),
+      getInventariosStockBajo: getIt<GetInventariosStockBajoUsecase>(),
+      createInventario: getIt<CreateInventarioUsecase>(),
+      updateInventario: getIt<UpdateInventarioUsecase>(),
+      updateStockInventario: getIt<UpdateStockUsecase>(),
+      reservarStockInventario: getIt<ReservarStockUsecase>(),
+      liberarStockInventario: getIt<LiberarStockUsecase>(),
+      deleteInventario: getIt<DeleteInventarioUsecase>(),
+      ajustarInventario: getIt<AjustarInventarioUsecase>(),
+      // Inject use cases here
     ),
   );
 }

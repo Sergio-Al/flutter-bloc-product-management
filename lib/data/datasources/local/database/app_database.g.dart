@@ -10250,6 +10250,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final ProveedorDao proveedorDao = ProveedorDao(this as AppDatabase);
   late final LoteDao loteDao = LoteDao(this as AppDatabase);
   late final CategoriaDao categoriaDao = CategoriaDao(this as AppDatabase);
+  late final UnidadMedidaDao unidadMedidaDao = UnidadMedidaDao(
+    this as AppDatabase,
+  );
+  late final RolDao rolDao = RolDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

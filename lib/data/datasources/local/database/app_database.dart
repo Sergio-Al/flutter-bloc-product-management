@@ -29,6 +29,8 @@ import 'daos/almacen_dao.dart';
 import 'daos/proveedor_dao.dart';
 import 'daos/lote_dao.dart';
 import 'daos/categoria_dao.dart';
+import 'daos/unidad_medida_dao.dart';
+import 'daos/rol_dao.dart';
 
 // Importar remote datasources para sync inicial
 import '../../remote/categoria_remote_datasource.dart';
@@ -64,6 +66,8 @@ part 'app_database.g.dart';
     ProveedorDao,
     LoteDao,
     CategoriaDao,
+    UnidadMedidaDao,
+    RolDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
