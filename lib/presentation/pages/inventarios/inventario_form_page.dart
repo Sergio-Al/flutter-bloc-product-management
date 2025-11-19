@@ -53,10 +53,21 @@ class _InventarioFormPageState extends State<InventarioFormPage> {
     super.initState();
     _isEditing = widget.inventario != null;
 
+    _selectedProductoId = widget.inventario?.productoId;
+    _selectedAlmacenId = widget.inventario?.almacenId;
+    _selectedTiendaId = widget.inventario?.tiendaId;
+    _selectedLoteId = widget.inventario?.loteId;
+
     _productoBloc = getIt<ProductoBloc>()..add(const LoadProductosActivos());
     _almacenBloc = getIt<AlmacenBloc>()..add(const LoadAlmacenesActivos());
     _tiendaBloc = getIt<TiendaBloc>()..add(const LoadTiendasActivas());
-    _loteBloc = getIt<LoteBloc>()..add(const LoadLotesConStock());
+    
+    _loteBloc = getIt<LoteBloc>();
+    if (_selectedProductoId != null) {
+      _loteBloc.add(LoadLotesByProducto(_selectedProductoId!));
+    } else {
+      _loteBloc.add(const LoadLotesConStock());
+    }
 
     _cantidadActualController = TextEditingController(
       text: widget.inventario?.cantidadActual.toString() ?? '',
@@ -71,10 +82,7 @@ class _InventarioFormPageState extends State<InventarioFormPage> {
       text: widget.inventario?.ubicacionFisica ?? '',
     );
 
-    _selectedProductoId = widget.inventario?.productoId;
-    _selectedAlmacenId = widget.inventario?.almacenId;
-    _selectedTiendaId = widget.inventario?.tiendaId;
-    _selectedLoteId = widget.inventario?.loteId;
+    
   }
 
   @override
@@ -329,7 +337,12 @@ class _InventarioFormPageState extends State<InventarioFormPage> {
                 : (String? newValue) {
                     setState(() {
                       _selectedProductoId = newValue;
+                      _selectedLoteId = null; // Reset selected lote when product changes
                     });
+                    
+                    if (newValue != null) {
+                      _loteBloc.add(LoadLotesByProducto(newValue));
+                    }
                   },
             validator: (value) {
               if (value == null || value.isEmpty) {
