@@ -11,7 +11,7 @@ class Movimientos extends Table {
   TextColumn get id => text()();
   TextColumn get numeroMovimiento => text().unique()();
   TextColumn get productoId => text().references(Productos, #id)();
-  TextColumn get inventarioId => text().references(Inventarios, #id)();
+  TextColumn get inventarioId => text().nullable().references(Inventarios, #id)();
   TextColumn get loteId => text().nullable().references(Lotes, #id)();
   TextColumn get tiendaOrigenId => text().nullable().references(Tiendas, #id)();
   TextColumn get tiendaDestinoId => text().nullable().references(Tiendas, #id)();

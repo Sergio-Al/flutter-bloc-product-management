@@ -26,4 +26,18 @@ class UsuarioDao extends DatabaseAccessor<AppDatabase> with _$UsuarioDaoMixin {
       telefono: Value(usuario.telefono),
     ));
   }
+
+  /// Insert or update usuario (for syncing authenticated user to local DB)
+  Future<void> upsertUsuario(UsuarioTable usuario) async {
+    await into(usuarios).insertOnConflictUpdate(UsuariosCompanion.insert(
+      id: usuario.id,
+      email: usuario.email,
+      nombreCompleto: usuario.nombreCompleto,
+      rolId: usuario.rolId,
+      tiendaId: Value(usuario.tiendaId),
+      telefono: Value(usuario.telefono),
+      activo: Value(usuario.activo),
+      syncId: Value(usuario.syncId),
+    ));
+  }
 }

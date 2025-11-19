@@ -6,6 +6,7 @@ import '../../core/network/network_info.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/local/auth_local_datasource.dart';
+import '../datasources/local/database/daos/usuario_dao.dart';
 import '../datasources/remote/auth_remote_datasource.dart';
 import '../models/usuario_model.dart';
 
@@ -15,11 +16,13 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDatasource;
   final AuthLocalDatasource localDatasource;
   final NetworkInfo networkInfo;
+  final UsuarioDao usuarioDao;
 
   AuthRepositoryImpl({
     required this.remoteDatasource,
     required this.localDatasource,
     required this.networkInfo,
+    required this.usuarioDao,
   });
 
   @override
@@ -42,8 +45,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
       AppLogger.info('User logged in: ${usuarioModel.id}');
 
-      // Cache user data locally
+      // Cache user data locally (SharedPreferences)
       await localDatasource.cacheUser(usuarioModel);
+
+      // Also sync user to local database to prevent foreign key errors
+      await _syncUserToDatabase(usuarioModel);
 
       // Convert model to entity
       return Right(usuarioModel.toEntity());
@@ -70,7 +76,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       // Register with Supabase Auth
-      final authResponse = await remoteDatasource.register(
+      await remoteDatasource.register(
         email: email,
         password: password,
         nombreCompleto: nombreCompleto,
@@ -84,6 +90,10 @@ class AuthRepositoryImpl implements AuthRepository {
       final usuarioModel = UsuarioModel.fromJson(userProfile);
 
       await localDatasource.cacheUser(usuarioModel);
+      
+      // Also sync user to local database
+      await _syncUserToDatabase(usuarioModel);
+      
       return Right(usuarioModel.toEntity());
     } on AuthenticationException catch (e) {
       return Left(AuthenticationFailure(message: e.message));
@@ -126,6 +136,10 @@ class AuthRepositoryImpl implements AuthRepository {
       // Try to get from cache first (offline-first)
       if (await localDatasource.hasCachedUser()) {
         final cachedUser = await localDatasource.getCachedUser();
+        
+        // Ensure user exists in local database (in case it was cleared)
+        await _syncUserToDatabase(cachedUser);
+        
         return Right(cachedUser.toEntity());
       }
 
@@ -141,6 +155,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
       // Cache for next time
       await localDatasource.cacheUser(usuarioModel);
+      
+      // Sync to local database
+      await _syncUserToDatabase(usuarioModel);
 
       return Right(usuarioModel.toEntity());
     } on CacheException {
@@ -153,6 +170,10 @@ class AuthRepositoryImpl implements AuthRepository {
         final userProfile = await remoteDatasource.getUserProfile();
         final usuarioModel = UsuarioModel.fromJson(userProfile);
         await localDatasource.cacheUser(usuarioModel);
+        
+        // Sync to local database
+        await _syncUserToDatabase(usuarioModel);
+        
         return Right(usuarioModel.toEntity());
       } on AuthenticationException catch (e) {
         return Left(AuthenticationFailure(message: e.message));
@@ -253,6 +274,22 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(
         ServerFailure(message: 'Unexpected error updating password: $e'),
       );
+    }
+  }
+
+  /// Sync authenticated user to local database to prevent foreign key errors
+  /// This ensures the user record exists in the local usuarios table
+  Future<void> _syncUserToDatabase(UsuarioModel user) async {
+    try {
+      await usuarioDao.upsertUsuario(user.toTable());
+      AppLogger.info('User synced to local database: ${user.id}');
+    } catch (e) {
+      AppLogger.error(
+        'Failed to sync user to database',
+        'User: ${user.id}, Error: $e',
+      );
+      // Don't throw - this is a non-critical operation
+      // The user is still cached in SharedPreferences
     }
   }
 }

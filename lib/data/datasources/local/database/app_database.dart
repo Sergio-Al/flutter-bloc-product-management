@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -84,10 +84,85 @@ class AppDatabase extends _$AppDatabase {
         await _seedInitialData();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Aquí irán las migraciones futuras
+        // Migration from version 1 to 2: Make inventarioId nullable in movimientos table
         if (from < 2) {
-          // Ejemplo de migración
-          // await m.addColumn(productos, productos.nuevoCampo);
+          // SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+          await customStatement('''
+            CREATE TABLE movimientos_new (
+              id TEXT NOT NULL PRIMARY KEY,
+              numero_movimiento TEXT NOT NULL UNIQUE,
+              producto_id TEXT NOT NULL REFERENCES productos(id),
+              inventario_id TEXT REFERENCES inventarios(id),
+              lote_id TEXT REFERENCES lotes(id),
+              tienda_origen_id TEXT REFERENCES tiendas(id),
+              tienda_destino_id TEXT REFERENCES tiendas(id),
+              proveedor_id TEXT REFERENCES proveedores(id),
+              tipo TEXT NOT NULL,
+              motivo TEXT,
+              cantidad INTEGER NOT NULL,
+              costo_unitario REAL NOT NULL DEFAULT 0.0,
+              costo_total REAL NOT NULL DEFAULT 0.0,
+              peso_total_kg REAL,
+              usuario_id TEXT NOT NULL REFERENCES usuarios(id),
+              estado TEXT NOT NULL,
+              fecha_movimiento INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+              numero_factura TEXT,
+              numero_guia_remision TEXT,
+              vehiculo_placa TEXT,
+              conductor TEXT,
+              observaciones TEXT,
+              created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+              updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+              sync_id TEXT,
+              last_sync INTEGER,
+              sincronizado INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          
+          // Copy data from old table to new table, converting empty strings to NULL
+          await customStatement('''
+            INSERT INTO movimientos_new 
+            SELECT 
+              id, numero_movimiento, producto_id,
+              CASE WHEN inventario_id = '' THEN NULL ELSE inventario_id END,
+              CASE WHEN lote_id = '' THEN NULL ELSE lote_id END,
+              CASE WHEN tienda_origen_id = '' THEN NULL ELSE tienda_origen_id END,
+              CASE WHEN tienda_destino_id = '' THEN NULL ELSE tienda_destino_id END,
+              CASE WHEN proveedor_id = '' THEN NULL ELSE proveedor_id END,
+              tipo,
+              CASE WHEN motivo = '' THEN NULL ELSE motivo END,
+              cantidad, costo_unitario, costo_total,
+              CASE WHEN peso_total_kg = 0.0 THEN NULL ELSE peso_total_kg END,
+              usuario_id, estado, fecha_movimiento,
+              CASE WHEN numero_factura = '' THEN NULL ELSE numero_factura END,
+              CASE WHEN numero_guia_remision = '' THEN NULL ELSE numero_guia_remision END,
+              CASE WHEN vehiculo_placa = '' THEN NULL ELSE vehiculo_placa END,
+              CASE WHEN conductor = '' THEN NULL ELSE conductor END,
+              CASE WHEN observaciones = '' THEN NULL ELSE observaciones END,
+              created_at, updated_at,
+              CASE WHEN sync_id = '' THEN NULL ELSE sync_id END,
+              last_sync, sincronizado
+            FROM movimientos
+          ''');
+          
+          // Drop old table
+          await customStatement('DROP TABLE movimientos');
+          
+          // Rename new table to original name
+          await customStatement('ALTER TABLE movimientos_new RENAME TO movimientos');
+        }
+        
+        // Migration from version 2 to 3: Update role IDs to match Supabase UUIDs
+        if (from < 3) {
+          // Update roles to use UUID format instead of string IDs
+          await customStatement('DELETE FROM roles');
+          await customStatement('''
+            INSERT INTO roles (id, nombre, descripcion, permisos, created_at, updated_at) VALUES
+            ('00000000-0000-0000-0000-000000000001', 'Administrador', 'Acceso completo al sistema', '{"all": true}', strftime('%s', 'now'), strftime('%s', 'now')),
+            ('00000000-0000-0000-0000-000000000002', 'Gerente', 'Gestión de tienda y reportes', '{"inventarios": true, "movimientos": true, "reportes": true}', strftime('%s', 'now'), strftime('%s', 'now')),
+            ('00000000-0000-0000-0000-000000000003', 'Almacenero', 'Gestión de inventarios y movimientos', '{"inventarios": true, "movimientos": true}', strftime('%s', 'now'), strftime('%s', 'now')),
+            ('00000000-0000-0000-0000-000000000004', 'Vendedor', 'Consulta de productos y ventas', '{"productos": "read", "inventarios": "read"}', strftime('%s', 'now'), strftime('%s', 'now'))
+          ''');
         }
       },
       beforeOpen: (details) async {
@@ -108,26 +183,26 @@ class AppDatabase extends _$AppDatabase {
     // Insertar roles por defecto
     final rolesDefault = [
       RolesCompanion.insert(
-        id: 'admin-role-id',
+        id: '00000000-0000-0000-0000-000000000001',
         nombre: 'Administrador',
         descripcion: const Value('Acceso completo al sistema'),
         permisos: '{"all": true}',
       ),
       RolesCompanion.insert(
-        id: 'gerente-role-id',
+        id: '00000000-0000-0000-0000-000000000002',
         nombre: 'Gerente',
         descripcion: const Value('Gestión de tienda y reportes'),
         permisos:
             '{"inventarios": true, "movimientos": true, "reportes": true}',
       ),
       RolesCompanion.insert(
-        id: 'almacenero-role-id',
+        id: '00000000-0000-0000-0000-000000000003',
         nombre: 'Almacenero',
-        descripcion: const Value('Gestión de inventarios'),
+        descripcion: const Value('Gestión de inventarios y movimientos'),
         permisos: '{"inventarios": true, "movimientos": true}',
       ),
       RolesCompanion.insert(
-        id: 'vendedor-role-id',
+        id: '00000000-0000-0000-0000-000000000004',
         nombre: 'Vendedor',
         descripcion: const Value('Consulta de productos y ventas'),
         permisos: '{"productos": "read", "inventarios": "read"}',
@@ -137,6 +212,9 @@ class AppDatabase extends _$AppDatabase {
     for (final rol in rolesDefault) {
       await into(roles).insert(rol, mode: InsertMode.insertOrIgnore);
     }
+
+    // Note: Users are automatically synced to local DB on login/register
+    // No need to seed users here
 
     // Insertar unidades de medida por defecto
     final unidadesDefault = [

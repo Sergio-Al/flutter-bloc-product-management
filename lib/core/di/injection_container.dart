@@ -4,12 +4,15 @@ import 'package:flutter_management_system/core/sync/sync_queue.dart';
 import 'package:flutter_management_system/data/datasources/local/database/app_database.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/almacen_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/inventario_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/movimiento_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/producto_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/usuario_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/movimiento_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/producto_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
@@ -18,18 +21,21 @@ import 'package:flutter_management_system/data/datasources/remote/categoria_remo
 import 'package:flutter_management_system/data/datasources/remote/unidad_medida_remote_datasource.dart';
 import 'package:flutter_management_system/data/repositories/almacen_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/inventario_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/movimiento_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/producto_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/lote_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/inventario_repository.dart';
+import 'package:flutter_management_system/domain/repositories/movimiento_repository.dart';
 import 'package:flutter_management_system/domain/repositories/producto_repository.dart';
 import 'package:flutter_management_system/domain/repositories/proveedor_repository.dart';
 import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
 import 'package:flutter_management_system/domain/repositories/lote_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/inventarios/inventario_usecases.dart';
+import 'package:flutter_management_system/domain/usecases/movimientos/movimiento_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/productos/product_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/almacenes/almacen_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/proveedores/proveedores_usecases.dart';
@@ -37,6 +43,7 @@ import 'package:flutter_management_system/domain/usecases/tienda/tienda_usecases
 import 'package:flutter_management_system/domain/usecases/lotes/lote_usecases.dart';
 import 'package:flutter_management_system/presentation/blocs/almacen/almacen_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/inventario/inventario_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/movimiento/movimiento_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
@@ -104,6 +111,7 @@ Future<void> setupDependencies() async {
       remoteDatasource: getIt(),
       localDatasource: getIt(),
       networkInfo: getIt(),
+      usuarioDao: getIt(),
     ),
   );
 
@@ -212,6 +220,10 @@ Future<void> setupDependencies() async {
     () => InventarioRemoteDataSource(),
   );
 
+  getIt.registerLazySingleton<MovimientoRemoteDataSource>(
+    () => MovimientoRemoteDataSource(),
+  );
+
   // ============================================================================
   // Core - Sync System (Must be after Remote DataSources)
   // ============================================================================
@@ -230,12 +242,17 @@ Future<void> setupDependencies() async {
       categoriaRemote: getIt<CategoriaRemoteDataSource>(),
       unidadMedidaRemote: getIt<UnidadMedidaRemoteDataSource>(),
       inventarioRemote: getIt<InventarioRemoteDataSource>(),
+      movimientoRemote: getIt<MovimientoRemoteDataSource>(),
     ),
   );
 
   // ============================================================================
-  // Data sources - Productos (Local)
+  // Data sources - Local DAOs
   // ============================================================================
+
+  getIt.registerLazySingleton<UsuarioDao>(
+    () => getIt<AppDatabase>().usuarioDao,
+  );
 
   getIt.registerLazySingleton<ProductoDao>(
     () => getIt<AppDatabase>().productoDao,
@@ -809,6 +826,186 @@ Future<void> setupDependencies() async {
       liberarStockInventario: getIt<LiberarStockUsecase>(),
       deleteInventario: getIt<DeleteInventarioUsecase>(),
       ajustarInventario: getIt<AjustarInventarioUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Movimientos (Local)
+  // ============================================================================
+
+  getIt.registerLazySingleton<MovimientoDao>(
+    () => getIt<AppDatabase>().movimientoDao,
+  );
+
+  // ============================================================================
+  // Repositories - Movimientos
+  // ============================================================================
+
+  getIt.registerLazySingleton<MovimientoRepository>(
+    () => MovimientoRepositoryImpl(
+      movimientoDao: getIt<MovimientoDao>(),
+      remoteDataSource: getIt<MovimientoRemoteDataSource>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Use Cases - Movimientos
+  // ============================================================================
+
+  getIt.registerLazySingleton<GetMovimientosUsecase>(
+    () => GetMovimientosUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientoByIdUsecase>(
+    () => GetMovimientoByIdUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientoByNumeroUsecase>(
+    () => GetMovimientoByNumeroUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByProductoUsecase>(
+    () => GetMovimientosByProductoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByTiendaUsecase>(
+    () => GetMovimientosByTiendaUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByUsuarioUsecase>(
+    () => GetMovimientosByUsuarioUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByTipoUsecase>(
+    () => GetMovimientosByTipoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByEstadoUsecase>(
+    () => GetMovimientosByEstadoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosByFechaRangoUsecase>(
+    () => GetMovimientosByFechaRangoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosPendientesUsecase>(
+    () => GetMovimientosPendientesUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMovimientosEnTransitoUsecase>(
+    () => GetMovimientosEnTransitoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateCompraUsecase>(
+    () => CreateCompraUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateVentaUsecase>(
+    () => CreateVentaUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateTransferenciaUsecase>(
+    () => CreateTransferenciaUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateAjusteUsecase>(
+    () => CreateAjusteUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateDevolucionUsecase>(
+    () => CreateDevolucionUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CreateMermaUsecase>(
+    () => CreateMermaUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+      getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<UpdateMovimientoUsecase>(
+    () => UpdateMovimientoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CompletarMovimientoUsecase>(
+    () => CompletarMovimientoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CancelarMovimientoUsecase>(
+    () => CancelarMovimientoUsecase(
+      movimientoRepository: getIt<MovimientoRepository>(),
+    ),
+  );
+
+  // ============================================================================
+  // BLoCs - Movimientos
+  // ============================================================================
+
+  getIt.registerFactory<MovimientoBloc>(
+    () => MovimientoBloc(
+      getMovimientos: getIt<GetMovimientosUsecase>(),
+      getMovimientoById: getIt<GetMovimientoByIdUsecase>(),
+      getMovimientoByNumero: getIt<GetMovimientoByNumeroUsecase>(),
+      getMovimientosByProducto: getIt<GetMovimientosByProductoUsecase>(),
+      getMovimientosByTienda: getIt<GetMovimientosByTiendaUsecase>(),
+      getMovimientosByUsuario: getIt<GetMovimientosByUsuarioUsecase>(),
+      getMovimientosByTipo: getIt<GetMovimientosByTipoUsecase>(),
+      getMovimientosByEstado: getIt<GetMovimientosByEstadoUsecase>(),
+      getMovimientosByFechaRango: getIt<GetMovimientosByFechaRangoUsecase>(),
+      getMovimientosPendientes: getIt<GetMovimientosPendientesUsecase>(),
+      getMovimientosEnTransito: getIt<GetMovimientosEnTransitoUsecase>(),
+      createCompra: getIt<CreateCompraUsecase>(),
+      createVenta: getIt<CreateVentaUsecase>(),
+      createTransferencia: getIt<CreateTransferenciaUsecase>(),
+      createAjuste: getIt<CreateAjusteUsecase>(),
+      createDevolucion: getIt<CreateDevolucionUsecase>(),
+      createMerma: getIt<CreateMermaUsecase>(),
+      updateMovimiento: getIt<UpdateMovimientoUsecase>(),
+      completarMovimiento: getIt<CompletarMovimientoUsecase>(),
+      cancelarMovimiento: getIt<CancelarMovimientoUsecase>(),
     ),
   );
 }

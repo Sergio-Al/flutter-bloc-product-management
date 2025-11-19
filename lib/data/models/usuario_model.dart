@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/usuario.dart';
+import '../datasources/local/database/app_database.dart';
 
 /// Modelo de datos para Usuario
 class UsuarioModel extends Equatable {
@@ -158,6 +159,24 @@ class UsuarioModel extends Equatable {
       deletedAt: entity.deletedAt,
       syncId: null,
       lastSync: null,
+    );
+  }
+
+  /// Convert Model to Table (for local database)
+  UsuarioTable toTable() {
+    return UsuarioTable(
+      id: id,
+      email: email,
+      nombreCompleto: nombreCompleto,
+      telefono: telefono,
+      tiendaId: tiendaId,
+      rolId: rolId,
+      activo: activo,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      deletedAt: deletedAt,
+      syncId: syncId,
+      lastSync: lastSync,
     );
   }
 }

@@ -3,7 +3,7 @@ import 'supabase_datasource.dart';
 import '../../../core/utils/logger.dart';
 
 /// Datasource remoto para operaciones de movimientos con Supabase
-/// 
+///
 /// ⚠️ IMPORTANTE: NO incluye método de eliminación (delete)
 /// Los movimientos son registros de auditoría permanentes que no deben eliminarse.
 /// Usar cancelarMovimiento() para marcar como CANCELADO en su lugar.
@@ -23,10 +23,8 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo movimientos');
 
-      PostgrestFilterBuilder<List<Map<String, dynamic>>> query = 
-          SupabaseDataSource.client
-              .from(_tableName)
-              .select('''
+      PostgrestFilterBuilder<List<Map<String, dynamic>>> query =
+          SupabaseDataSource.client.from(_tableName).select('''
                 *,
                 producto:productos(*),
                 inventario:inventarios(*),
@@ -42,7 +40,9 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
       }
 
       if (tiendaId != null) {
-        query = query.or('tienda_origen_id.eq.$tiendaId,tienda_destino_id.eq.$tiendaId');
+        query = query.or(
+          'tienda_origen_id.eq.$tiendaId,tienda_destino_id.eq.$tiendaId',
+        );
       }
 
       if (tipo != null) {
@@ -57,8 +57,16 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
         query = query.lte('fecha_movimiento', fechaHasta.toIso8601String());
       }
 
-      var transformedQuery = SupabaseDataSource.applyPagination(query, limit: limit, offset: offset);
-      transformedQuery = SupabaseDataSource.applyOrdering(transformedQuery, column: 'fecha_movimiento', ascending: false);
+      var transformedQuery = SupabaseDataSource.applyPagination(
+        query,
+        limit: limit,
+        offset: offset,
+      );
+      transformedQuery = SupabaseDataSource.applyOrdering(
+        transformedQuery,
+        column: 'fecha_movimiento',
+        ascending: false,
+      );
 
       final response = await transformedQuery;
 
@@ -95,16 +103,23 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     Map<String, dynamic> data,
   ) async {
     return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Creando movimiento tipo: ${data['tipo']}');
+      try {
+        AppLogger.database('Creando movimiento tipo: ${data['tipo']}');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .insert(data)
-          .select()
-          .single();
+        final response = await SupabaseDataSource.client
+            .from(_tableName)
+            .insert(data)
+            .select()
+            .single();
 
-      AppLogger.database('✅ Movimiento creado: ${response['numero_movimiento']}');
-      return response;
+        AppLogger.database(
+          '✅ Movimiento creado: ${response['numero_movimiento']}',
+        );
+        return response;
+      } catch (e) {
+        AppLogger.database('❌ Error creando movimiento: $e');
+        rethrow;
+      }
     });
   }
 
@@ -188,16 +203,18 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando compra de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_compra', params: {
-        'p_producto_id': productoId,
-        'p_almacen_id': almacenId,
-        'p_proveedor_id': proveedorId,
-        'p_cantidad': cantidad,
-        'p_costo_unitario': costoUnitario,
-        if (numeroFactura != null) 'p_numero_factura': numeroFactura,
-        if (loteId != null) 'p_lote_id': loteId,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_compra',
+        params: {
+          'p_producto_id': productoId,
+          'p_almacen_id': almacenId,
+          'p_proveedor_id': proveedorId,
+          'p_cantidad': cantidad,
+          'p_costo_unitario': costoUnitario,
+          if (numeroFactura != null) 'p_numero_factura': numeroFactura,
+          if (loteId != null) 'p_lote_id': loteId,
+        },
+      );
 
       AppLogger.database('✅ Compra creada');
       return response;
@@ -215,14 +232,16 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando venta de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_venta', params: {
-        'p_producto_id': productoId,
-        'p_almacen_id': almacenId,
-        'p_cantidad': cantidad,
-        'p_precio_unitario': precioUnitario,
-        if (numeroFactura != null) 'p_numero_factura': numeroFactura,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_venta',
+        params: {
+          'p_producto_id': productoId,
+          'p_almacen_id': almacenId,
+          'p_cantidad': cantidad,
+          'p_precio_unitario': precioUnitario,
+          if (numeroFactura != null) 'p_numero_factura': numeroFactura,
+        },
+      );
 
       AppLogger.database('✅ Venta creada');
       return response;
@@ -242,16 +261,18 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando transferencia de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_transferencia', params: {
-        'p_producto_id': productoId,
-        'p_almacen_origen_id': almacenOrigenId,
-        'p_almacen_destino_id': almacenDestinoId,
-        'p_cantidad': cantidad,
-        if (numeroGuiaRemision != null) 'p_numero_guia': numeroGuiaRemision,
-        if (vehiculoPlaca != null) 'p_vehiculo': vehiculoPlaca,
-        if (conductor != null) 'p_conductor': conductor,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_transferencia',
+        params: {
+          'p_producto_id': productoId,
+          'p_almacen_origen_id': almacenOrigenId,
+          'p_almacen_destino_id': almacenDestinoId,
+          'p_cantidad': cantidad,
+          if (numeroGuiaRemision != null) 'p_numero_guia': numeroGuiaRemision,
+          if (vehiculoPlaca != null) 'p_vehiculo': vehiculoPlaca,
+          if (conductor != null) 'p_conductor': conductor,
+        },
+      );
 
       AppLogger.database('✅ Transferencia creada');
       return response;
@@ -269,14 +290,16 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando ajuste de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_ajuste', params: {
-        'p_producto_id': productoId,
-        'p_tienda_id': tiendaId,
-        'p_cantidad': cantidad,
-        'p_motivo': motivo,
-        if (observaciones != null) 'p_observaciones': observaciones,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_ajuste',
+        params: {
+          'p_producto_id': productoId,
+          'p_tienda_id': tiendaId,
+          'p_cantidad': cantidad,
+          'p_motivo': motivo,
+          if (observaciones != null) 'p_observaciones': observaciones,
+        },
+      );
 
       AppLogger.database('✅ Ajuste creado');
       return response;
@@ -295,15 +318,17 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando devolución de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_devolucion', params: {
-        'p_producto_id': productoId,
-        'p_tienda_id': tiendaId,
-        'p_cantidad': cantidad,
-        'p_motivo': motivo,
-        if (numeroFactura != null) 'p_numero_factura': numeroFactura,
-        if (observaciones != null) 'p_observaciones': observaciones,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_devolucion',
+        params: {
+          'p_producto_id': productoId,
+          'p_tienda_id': tiendaId,
+          'p_cantidad': cantidad,
+          'p_motivo': motivo,
+          if (numeroFactura != null) 'p_numero_factura': numeroFactura,
+          if (observaciones != null) 'p_observaciones': observaciones,
+        },
+      );
 
       AppLogger.database('✅ Devolución creada');
       return response;
@@ -321,14 +346,16 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Creando merma de producto: $productoId');
 
-      final response = await SupabaseDataSource.client
-          .rpc('create_merma', params: {
-        'p_producto_id': productoId,
-        'p_tienda_id': tiendaId,
-        'p_cantidad': cantidad,
-        'p_motivo': motivo,
-        if (observaciones != null) 'p_observaciones': observaciones,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'create_merma',
+        params: {
+          'p_producto_id': productoId,
+          'p_tienda_id': tiendaId,
+          'p_cantidad': cantidad,
+          'p_motivo': motivo,
+          if (observaciones != null) 'p_observaciones': observaciones,
+        },
+      );
 
       AppLogger.database('✅ Merma creada');
       return response;
@@ -361,7 +388,9 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
           .eq('estado', 'PENDIENTE');
 
       if (tiendaId != null) {
-        query = query.or('tienda_origen_id.eq.$tiendaId,tienda_destino_id.eq.$tiendaId');
+        query = query.or(
+          'tienda_origen_id.eq.$tiendaId,tienda_destino_id.eq.$tiendaId',
+        );
       }
 
       final response = await query.order('fecha_movimiento');
@@ -373,10 +402,13 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
   /// Marca un movimiento como sincronizado
   Future<void> markAsSynced(String id, DateTime syncTime) async {
     return SupabaseDataSource.executeQuery(() async {
-      await SupabaseDataSource.client.from(_tableName).update({
-        'last_sync': syncTime.toIso8601String(),
-        'sincronizado': true,
-      }).eq('id', id);
+      await SupabaseDataSource.client
+          .from(_tableName)
+          .update({
+            'last_sync': syncTime.toIso8601String(),
+            'sincronizado': true,
+          })
+          .eq('id', id);
 
       AppLogger.sync('Movimiento marcado como sincronizado: $id');
     });
@@ -409,12 +441,14 @@ class MovimientoRemoteDataSource extends SupabaseDataSource {
     return SupabaseDataSource.executeQuery(() async {
       AppLogger.database('Obteniendo reporte de movimientos');
 
-      final response = await SupabaseDataSource.client
-          .rpc('get_reporte_movimientos', params: {
-        'p_fecha_desde': fechaDesde.toIso8601String(),
-        'p_fecha_hasta': fechaHasta.toIso8601String(),
-        if (tiendaId != null) 'p_tienda_id': tiendaId,
-      });
+      final response = await SupabaseDataSource.client.rpc(
+        'get_reporte_movimientos',
+        params: {
+          'p_fecha_desde': fechaDesde.toIso8601String(),
+          'p_fecha_hasta': fechaHasta.toIso8601String(),
+          if (tiendaId != null) 'p_tienda_id': tiendaId,
+        },
+      );
 
       return response;
     });

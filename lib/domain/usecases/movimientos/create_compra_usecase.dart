@@ -1,3 +1,4 @@
+import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/domain/repositories/movimiento_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 
@@ -40,6 +41,7 @@ class CreateCompraUsecase {
         );
         result.fold(
           (failure) {
+            AppLogger.error('CreateCompraUsecase.call', failure.message);
             throw Exception('Failed to create compra: ${failure.message}');
           },
           (movimiento) {

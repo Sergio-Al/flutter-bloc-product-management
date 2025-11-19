@@ -8164,9 +8164,9 @@ class $MovimientosTable extends Movimientos
   late final GeneratedColumn<String> inventarioId = GeneratedColumn<String>(
     'inventario_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES inventarios (id)',
     ),
@@ -8513,8 +8513,6 @@ class $MovimientosTable extends Movimientos
           _inventarioIdMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_inventarioIdMeta);
     }
     if (data.containsKey('lote_id')) {
       context.handle(
@@ -8719,7 +8717,7 @@ class $MovimientosTable extends Movimientos
       inventarioId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}inventario_id'],
-      )!,
+      ),
       loteId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}lote_id'],
@@ -8825,7 +8823,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
   final String id;
   final String numeroMovimiento;
   final String productoId;
-  final String inventarioId;
+  final String? inventarioId;
   final String? loteId;
   final String? tiendaOrigenId;
   final String? tiendaDestinoId;
@@ -8853,7 +8851,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
     required this.id,
     required this.numeroMovimiento,
     required this.productoId,
-    required this.inventarioId,
+    this.inventarioId,
     this.loteId,
     this.tiendaOrigenId,
     this.tiendaDestinoId,
@@ -8884,7 +8882,9 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
     map['id'] = Variable<String>(id);
     map['numero_movimiento'] = Variable<String>(numeroMovimiento);
     map['producto_id'] = Variable<String>(productoId);
-    map['inventario_id'] = Variable<String>(inventarioId);
+    if (!nullToAbsent || inventarioId != null) {
+      map['inventario_id'] = Variable<String>(inventarioId);
+    }
     if (!nullToAbsent || loteId != null) {
       map['lote_id'] = Variable<String>(loteId);
     }
@@ -8942,7 +8942,9 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
       id: Value(id),
       numeroMovimiento: Value(numeroMovimiento),
       productoId: Value(productoId),
-      inventarioId: Value(inventarioId),
+      inventarioId: inventarioId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inventarioId),
       loteId: loteId == null && nullToAbsent
           ? const Value.absent()
           : Value(loteId),
@@ -9004,7 +9006,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
       id: serializer.fromJson<String>(json['id']),
       numeroMovimiento: serializer.fromJson<String>(json['numeroMovimiento']),
       productoId: serializer.fromJson<String>(json['productoId']),
-      inventarioId: serializer.fromJson<String>(json['inventarioId']),
+      inventarioId: serializer.fromJson<String?>(json['inventarioId']),
       loteId: serializer.fromJson<String?>(json['loteId']),
       tiendaOrigenId: serializer.fromJson<String?>(json['tiendaOrigenId']),
       tiendaDestinoId: serializer.fromJson<String?>(json['tiendaDestinoId']),
@@ -9039,7 +9041,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
       'id': serializer.toJson<String>(id),
       'numeroMovimiento': serializer.toJson<String>(numeroMovimiento),
       'productoId': serializer.toJson<String>(productoId),
-      'inventarioId': serializer.toJson<String>(inventarioId),
+      'inventarioId': serializer.toJson<String?>(inventarioId),
       'loteId': serializer.toJson<String?>(loteId),
       'tiendaOrigenId': serializer.toJson<String?>(tiendaOrigenId),
       'tiendaDestinoId': serializer.toJson<String?>(tiendaDestinoId),
@@ -9070,7 +9072,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
     String? id,
     String? numeroMovimiento,
     String? productoId,
-    String? inventarioId,
+    Value<String?> inventarioId = const Value.absent(),
     Value<String?> loteId = const Value.absent(),
     Value<String?> tiendaOrigenId = const Value.absent(),
     Value<String?> tiendaDestinoId = const Value.absent(),
@@ -9098,7 +9100,7 @@ class MovimientoTable extends DataClass implements Insertable<MovimientoTable> {
     id: id ?? this.id,
     numeroMovimiento: numeroMovimiento ?? this.numeroMovimiento,
     productoId: productoId ?? this.productoId,
-    inventarioId: inventarioId ?? this.inventarioId,
+    inventarioId: inventarioId.present ? inventarioId.value : this.inventarioId,
     loteId: loteId.present ? loteId.value : this.loteId,
     tiendaOrigenId: tiendaOrigenId.present
         ? tiendaOrigenId.value
@@ -9298,7 +9300,7 @@ class MovimientosCompanion extends UpdateCompanion<MovimientoTable> {
   final Value<String> id;
   final Value<String> numeroMovimiento;
   final Value<String> productoId;
-  final Value<String> inventarioId;
+  final Value<String?> inventarioId;
   final Value<String?> loteId;
   final Value<String?> tiendaOrigenId;
   final Value<String?> tiendaDestinoId;
@@ -9357,7 +9359,7 @@ class MovimientosCompanion extends UpdateCompanion<MovimientoTable> {
     required String id,
     required String numeroMovimiento,
     required String productoId,
-    required String inventarioId,
+    this.inventarioId = const Value.absent(),
     this.loteId = const Value.absent(),
     this.tiendaOrigenId = const Value.absent(),
     this.tiendaDestinoId = const Value.absent(),
@@ -9385,7 +9387,6 @@ class MovimientosCompanion extends UpdateCompanion<MovimientoTable> {
   }) : id = Value(id),
        numeroMovimiento = Value(numeroMovimiento),
        productoId = Value(productoId),
-       inventarioId = Value(inventarioId),
        tipo = Value(tipo),
        cantidad = Value(cantidad),
        usuarioId = Value(usuarioId),
@@ -9457,7 +9458,7 @@ class MovimientosCompanion extends UpdateCompanion<MovimientoTable> {
     Value<String>? id,
     Value<String>? numeroMovimiento,
     Value<String>? productoId,
-    Value<String>? inventarioId,
+    Value<String?>? inventarioId,
     Value<String?>? loteId,
     Value<String?>? tiendaOrigenId,
     Value<String?>? tiendaDestinoId,
@@ -17138,7 +17139,7 @@ typedef $$MovimientosTableCreateCompanionBuilder =
       required String id,
       required String numeroMovimiento,
       required String productoId,
-      required String inventarioId,
+      Value<String?> inventarioId,
       Value<String?> loteId,
       Value<String?> tiendaOrigenId,
       Value<String?> tiendaDestinoId,
@@ -17169,7 +17170,7 @@ typedef $$MovimientosTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> numeroMovimiento,
       Value<String> productoId,
-      Value<String> inventarioId,
+      Value<String?> inventarioId,
       Value<String?> loteId,
       Value<String?> tiendaOrigenId,
       Value<String?> tiendaDestinoId,
@@ -17224,9 +17225,9 @@ final class $$MovimientosTableReferences
         $_aliasNameGenerator(db.movimientos.inventarioId, db.inventarios.id),
       );
 
-  $$InventariosTableProcessedTableManager get inventarioId {
-    final $_column = $_itemColumn<String>('inventario_id')!;
-
+  $$InventariosTableProcessedTableManager? get inventarioId {
+    final $_column = $_itemColumn<String>('inventario_id');
+    if ($_column == null) return null;
     final manager = $$InventariosTableTableManager(
       $_db,
       $_db.inventarios,
@@ -18165,7 +18166,7 @@ class $$MovimientosTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> numeroMovimiento = const Value.absent(),
                 Value<String> productoId = const Value.absent(),
-                Value<String> inventarioId = const Value.absent(),
+                Value<String?> inventarioId = const Value.absent(),
                 Value<String?> loteId = const Value.absent(),
                 Value<String?> tiendaOrigenId = const Value.absent(),
                 Value<String?> tiendaDestinoId = const Value.absent(),
@@ -18225,7 +18226,7 @@ class $$MovimientosTableTableManager
                 required String id,
                 required String numeroMovimiento,
                 required String productoId,
-                required String inventarioId,
+                Value<String?> inventarioId = const Value.absent(),
                 Value<String?> loteId = const Value.absent(),
                 Value<String?> tiendaOrigenId = const Value.absent(),
                 Value<String?> tiendaDestinoId = const Value.absent(),

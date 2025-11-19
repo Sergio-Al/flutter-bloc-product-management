@@ -3,6 +3,7 @@ import 'package:flutter_management_system/core/errors/failures.dart';
 import 'package:flutter_management_system/core/network/network_info.dart';
 import 'package:flutter_management_system/core/sync/sync_manager.dart';
 import 'package:flutter_management_system/core/sync/sync_item.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/core/utils/uuid_generator.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/movimiento_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/movimiento_remote_datasource.dart';
@@ -63,7 +64,14 @@ class MovimientoRepositoryImpl extends MovimientoRepository {
 
           final finalTable = await movimientoDao.getMovimientoById(id);
           if (finalTable != null) {
-            return Right(finalTable.toEntity());
+            final entity = finalTable.toEntity();
+            await syncManager.queueChange(
+              entityId: id,
+              entityType: SyncEntityType.movimiento,
+              operation: SyncOperation.update,
+              data: entity.toJson(),
+            );
+            return Right(entity);
           }
         }
         return Left(
@@ -108,7 +116,14 @@ class MovimientoRepositoryImpl extends MovimientoRepository {
       if (success) {
         final updatedTable = await movimientoDao.getMovimientoById(id);
         if (updatedTable != null) {
-          return Right(updatedTable.toEntity());
+          final entity = updatedTable.toEntity();
+          await syncManager.queueChange(
+            entityId: id,
+            entityType: SyncEntityType.movimiento,
+            operation: SyncOperation.update,
+            data: entity.toJson(),
+          );
+          return Right(entity);
         } else {
           return Left(
             CacheFailure(message: 'Movimiento not found after completion'),
@@ -242,6 +257,7 @@ class MovimientoRepositoryImpl extends MovimientoRepository {
 
       return Right(movimiento);
     } catch (e) {
+      AppLogger.error('MovimientoRepositoryImpl.createCompra', e.toString());
       return Left(CacheFailure(message: 'Failed to create compra: $e'));
     }
   }
@@ -773,7 +789,14 @@ class MovimientoRepositoryImpl extends MovimientoRepository {
           movimiento.id,
         );
         if (updatedTable != null) {
-          return Right(updatedTable.toEntity());
+          final entity = updatedTable.toEntity();
+          await syncManager.queueChange(
+            entityId: entity.id,
+            entityType: SyncEntityType.movimiento,
+            operation: SyncOperation.update,
+            data: entity.toJson(),
+          );
+          return Right(entity);
         } else {
           return Left(
             CacheFailure(message: 'Movimiento not found after update'),

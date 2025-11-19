@@ -6,6 +6,7 @@ import 'package:flutter_management_system/core/di/sync_constants.dart';
 import 'package:flutter_management_system/core/utils/logger.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
+import 'package:flutter_management_system/data/datasources/remote/movimiento_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/proveedor_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/tienda_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/lote_remote_datasource.dart';
@@ -38,6 +39,7 @@ class SyncManager {
   final CategoriaRemoteDataSource _categoriaRemote;
   final UnidadMedidaRemoteDataSource _unidadMedidaRemote;
   final InventarioRemoteDataSource _inventarioRemote;
+  final MovimientoRemoteDataSource _movimientoRemote;
 
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -60,6 +62,7 @@ class SyncManager {
     required CategoriaRemoteDataSource categoriaRemote,
     required UnidadMedidaRemoteDataSource unidadMedidaRemote,
     required InventarioRemoteDataSource inventarioRemote,
+    required MovimientoRemoteDataSource movimientoRemote,
     ConflictResolver? conflictResolver,
   }) : _localDb = localDb,
        _syncQueue = syncQueue,
@@ -72,6 +75,7 @@ class SyncManager {
        _categoriaRemote = categoriaRemote,
        _unidadMedidaRemote = unidadMedidaRemote,
        _inventarioRemote = inventarioRemote,
+       _movimientoRemote = movimientoRemote,
        _conflictResolver = conflictResolver ?? ConflictResolver() {
     _init();
   }
@@ -565,8 +569,46 @@ class SyncManager {
 
   /// Ejemplo de sincronización de movimiento
   Future<Either<Failure, void>> _syncMovimiento(SyncItem item) async {
-    // TODO: Implementar
-    return const Right(null);
+    try {
+      // Convert camelCase data to snake_case for Supabase
+      final remoteData = _convertMovimientoToRemoteFormat(item.data);
+
+      switch (item.operation) {
+        case SyncOperation.create:
+          // Create on server
+          await _movimientoRemote.createMovimiento(remoteData);
+          break;
+
+        case SyncOperation.update:
+          // Update on server
+          await _movimientoRemote.updateMovimiento(
+            id: item.entityId,
+            data: remoteData,
+          );
+          break;
+
+        case SyncOperation.delete:
+          // Movimientos are not deleted, only soft-deleted via 'estado' field
+          break;
+      }
+
+      return const Right(null);
+    } catch (e) {
+      return Left(SyncFailure(message: 'Failed to sync movimiento: $e'));
+    }
+  }
+
+  /// Convert camelCase JSON to snake_case for Supabase (Movimiento)
+  /// Note: toJson() already returns snake_case, so we just pass it through
+  /// removing local-only fields
+  Map<String, dynamic> _convertMovimientoToRemoteFormat(
+    Map<String, dynamic> data,
+  ) {
+    // Remove local-only fields (sincronizado)
+    final remoteData = Map<String, dynamic>.from(data);
+    remoteData.remove('sincronizado');
+    remoteData.remove('sync_id');
+    return remoteData;
   }
 
   /// Traer cambios del servidor a local (pull)
@@ -587,6 +629,7 @@ class SyncManager {
       await _pullProductos();
       await _pullLotes();
       await _pullInventarios();
+      await _pullMovimientos();
 
       AppLogger.info('✅ Pull desde servidor completado');
     } catch (e) {
@@ -960,6 +1003,93 @@ class SyncManager {
       AppLogger.sync('✅ Inventarios sincronizados');
     } catch (e) {
       AppLogger.error('Error syncing inventarios: $e');
+    }
+  }
+
+  /*
+  CREATE TABLE public.movimientos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    numero_movimiento VARCHAR(100) UNIQUE NOT NULL,
+    producto_id UUID REFERENCES public.productos(id) NOT NULL,
+    inventario_id UUID REFERENCES public.inventarios(id) ON DELETE SET NULL,
+    lote_id UUID REFERENCES public.lotes(id) ON DELETE SET NULL,
+    tienda_origen_id UUID REFERENCES public.tiendas(id) ON DELETE SET NULL,
+    tienda_destino_id UUID REFERENCES public.tiendas(id) ON DELETE SET NULL,
+    proveedor_id UUID REFERENCES public.proveedores(id) ON DELETE SET NULL,
+    tipo VARCHAR(50) NOT NULL CHECK (tipo IN ('COMPRA', 'VENTA', 'TRANSFERENCIA', 'AJUSTE', 'DEVOLUCION', 'MERMA')),
+    motivo TEXT,
+    cantidad INTEGER NOT NULL,
+    costo_unitario DECIMAL(10, 2) DEFAULT 0 NOT NULL,
+    costo_total DECIMAL(12, 2) DEFAULT 0 NOT NULL,
+    peso_total_kg DECIMAL(10, 2),
+    usuario_id UUID REFERENCES public.usuarios(id) NOT NULL,
+    estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'EN_TRANSITO', 'COMPLETADO', 'CANCELADO')),
+    fecha_movimiento TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    numero_factura VARCHAR(100),
+    numero_guia_remision VARCHAR(100),
+    vehiculo_placa VARCHAR(20),
+    conductor VARCHAR(255),
+    observaciones TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    sync_id UUID DEFAULT uuid_generate_v4(),
+    last_sync TIMESTAMPTZ,
+    sincronizado BOOLEAN DEFAULT false NOT NULL
+);
+   */
+  // Pull movimientos from server
+  Future<void> _pullMovimientos() async {
+    try {
+      final remoteData = await _movimientoRemote.getMovimientos();
+
+      AppLogger.sync('Sincronizando ${remoteData.length} movimientos...');
+
+      for (final data in remoteData) {
+        final movimiento = MovimientosCompanion(
+          id: Value(data['id'] as String),
+          numeroMovimiento: Value(data['numero_movimiento'] as String),
+          productoId: Value(data['producto_id'] as String),
+          inventarioId: Value(data['inventario_id'] as String),
+          loteId: Value(data['lote_id'] as String?),
+          tiendaOrigenId: Value(data['tienda_origen_id'] as String?),
+          tiendaDestinoId: Value(data['tienda_destino_id'] as String?),
+          proveedorId: Value(data['proveedor_id'] as String?),
+          tipo: Value(data['tipo'] as String),
+          motivo: Value(data['motivo'] as String?),
+          cantidad: Value(data['cantidad'] as int? ?? 0),
+          costoUnitario: Value(data['costo_unitario'] as double? ?? 0.0),
+          costoTotal: Value(data['costo_total'] as double? ?? 0.0),
+          pesoTotalKg: Value(data['peso_total_kg'] as double?),
+          usuarioId: Value(data['usuario_id'] as String),
+          estado: Value(data['estado'] as String? ?? 'PENDIENTE'),
+          fechaMovimiento: Value(
+            data['fecha_movimiento'] != null
+                ? DateTime.parse(data['fecha_movimiento'] as String)
+                : DateTime.now(),
+          ),
+          numeroFactura: Value(data['numero_factura'] as String?),
+          numeroGuiaRemision: Value(data['numero_guia_remision'] as String?),
+          vehiculoPlaca: Value(data['vehiculo_placa'] as String?),
+          conductor: Value(data['conductor'] as String?),
+          observaciones: Value(data['observaciones'] as String?),
+          createdAt: Value(
+            data['created_at'] != null
+                ? DateTime.parse(data['created_at'] as String)
+                : DateTime.now(),
+          ),
+          updatedAt: Value(
+            data['updated_at'] != null
+                ? DateTime.parse(data['updated_at'] as String)
+                : DateTime.now(),
+          ),
+        );
+
+        await _localDb
+            .into(_localDb.movimientos)
+            .insertOnConflictUpdate(movimiento);
+      }
+    } catch (e) {
+      AppLogger.sync('Error sincronizando movimientos: $e');
     }
   }
 
