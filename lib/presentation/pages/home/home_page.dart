@@ -13,6 +13,7 @@ class MenuItem {
   final String subtitle;
   final String route;
   final bool isImplemented;
+  final List<String> allowedRoles; // Roles que pueden ver este item
 
   const MenuItem({
     required this.icon,
@@ -20,90 +21,121 @@ class MenuItem {
     required this.subtitle,
     required this.route,
     this.isImplemented = true,
+    this.allowedRoles = const ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
   });
+
+  /// Verifica si el usuario tiene permiso para ver este item
+  bool isAllowedForRole(String? roleName) {
+    if (roleName == null) return false;
+    return allowedRoles.contains(roleName);
+  }
 }
 
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  // Centralized menu configuration
+  // Centralized menu configuration with role-based access
   static const List<MenuItem> _menuItems = [
+    // ✅ Productos - Administrador, Gerente, Almacenero (lectura), Vendedor (lectura)
     MenuItem(
       icon: Icons.inventory_2,
       title: 'Productos',
       subtitle: 'Gestionar productos',
       route: '/productos',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
+    // ✅ Almacenes - Administrador, Gerente, Almacenero
     MenuItem(
       icon: Icons.warehouse,
       title: 'Almacenes',
       subtitle: 'Gestionar almacenes',
       route: '/almacenes',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero'],
     ),
+    // ✅ Tiendas - Todos pueden ver (lectura), solo Admin puede gestionar
     MenuItem(
       icon: Icons.store,
       title: 'Tiendas',
       subtitle: 'Gestionar tiendas',
       route: '/tiendas',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
+    // ✅ Proveedores - Administrador, Gerente, Almacenero (lectura)
     MenuItem(
       icon: Icons.contact_page,
       title: 'Proveedores',
       subtitle: 'Gestionar proveedores',
       route: '/proveedores',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero'],
     ),
+    // ✅ Lotes - Administrador, Gerente, Almacenero, Vendedor (lectura)
     MenuItem(
       icon: Icons.all_inbox,
       title: 'Lotes',
       subtitle: 'Gestionar lotes',
       route: '/lotes',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
+    // ✅ Inventarios - Todos
     MenuItem(
       icon: Icons.inventory,
       title: 'Inventarios',
       subtitle: 'Gestionar inventarios',
       route: '/inventarios',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
+    // ✅ Movimientos - Todos (Vendedor puede registrar ventas)
     MenuItem(
       icon: Icons.swap_horiz,
       title: 'Movimientos',
       subtitle: 'Gestionar movimientos',
       route: '/movimientos',
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    MenuItem(
-      icon: Icons.receipt_long,
-      title: 'Órdenes',
-      subtitle: 'Gestionar órdenes',
-      route: '/ordenes',
-      isImplemented: false,
-    ),
-    MenuItem(
-      icon: Icons.people,
-      title: 'Clientes',
-      subtitle: 'Gestionar clientes',
-      route: '/clientes',
-      isImplemented: false,
-    ),
+    // 🔒 Reportes - Administrador, Gerente, Almacenero (algunos), Vendedor (limitado)
     MenuItem(
       icon: Icons.assessment,
       title: 'Reportes',
       subtitle: 'Ver estadísticas',
       route: '/reportes',
       isImplemented: false,
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
+    // 🔒 Usuarios - Solo Administrador y Gerente (lectura)
+    MenuItem(
+      icon: Icons.people,
+      title: 'Usuarios',
+      subtitle: 'Gestionar usuarios',
+      route: '/usuarios',
+      isImplemented: false,
+      allowedRoles: ['Administrador', 'Gerente'],
+    ),
+    // 🔒 Análisis - Administrador, Gerente
     MenuItem(
       icon: Icons.trending_up,
       title: 'Análisis',
       subtitle: 'Dashboard analítico',
       route: '/analisis',
       isImplemented: false,
+      allowedRoles: ['Administrador', 'Gerente'],
     ),
+    // 🔒 Alertas - Todos
     MenuItem(
       icon: Icons.notifications,
       title: 'Alertas',
       subtitle: 'Notificaciones',
       route: '/alertas',
       isImplemented: false,
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
+    ),
+    // 🔒 Configuración - Solo Administrador
+    MenuItem(
+      icon: Icons.settings,
+      title: 'Configuración',
+      subtitle: 'Ajustes del sistema',
+      route: '/configuracion',
+      isImplemented: false,
+      allowedRoles: ['Administrador'],
     ),
   ];
 
@@ -123,6 +155,54 @@ class HomePage extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Extrae el nombre del rol del usuario
+  /// Usa el rolId del usuario para mapear al nombre del rol
+  String? _getUserRoleName(dynamic user) {
+    // El user es una entidad Usuario que tiene rolId (UUID string)
+    final rolId = user.rolId;
+    
+    if (rolId == null) return null;
+    
+    // Mapear UUID del rol a nombre conocido
+    switch (rolId) {
+      case '00000000-0000-0000-0000-000000000001':
+        return 'Administrador';
+      case '00000000-0000-0000-0000-000000000002':
+        return 'Gerente';
+      case '00000000-0000-0000-0000-000000000003':
+        return 'Almacenero';
+      case '00000000-0000-0000-0000-000000000004':
+        return 'Vendedor';
+      default:
+        // Si el UUID no coincide, intentar detectar por patrón
+        // Esto es útil si los UUIDs son diferentes en tu BD
+        return null;
+    }
+  }
+
+  /// Filtra los items del menú según el rol del usuario
+  List<MenuItem> _getMenuItemsForRole(dynamic user) {
+    final roleName = _getUserRoleName(user);
+    
+    // Debug: ver qué rol se detectó
+    print('🔍 DEBUG - Rol detectado: $roleName');
+    
+    // Si no se detecta el rol, mostrar items básicos (para evitar pantalla vacía)
+    if (roleName == null) {
+      print('⚠️ WARNING - No se pudo detectar el rol, mostrando items básicos');
+      // Mostrar solo items implementados y seguros
+      return _menuItems.where((item) => 
+        item.isImplemented && 
+        ['Productos', 'Inventarios', 'Movimientos'].contains(item.title)
+      ).toList();
+    }
+    
+    final filtered = _menuItems.where((item) => item.isAllowedForRole(roleName)).toList();
+    print('🔍 DEBUG - Items filtrados: ${filtered.length} de ${_menuItems.length}');
+    
+    return filtered;
   }
 
   void _redirectToLogin(BuildContext context) {
@@ -173,7 +253,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSectionTitle(context, 'Accesos Rápidos'),
             const SizedBox(height: 16),
-            _buildActionGrid(context),
+            _buildActionGrid(context, user),
           ],
         ),
       ),
@@ -181,6 +261,14 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildWelcomeCard(BuildContext context, user) {
+    // Debug: Imprimir información del usuario
+    print('🔍 DEBUG - Usuario rolId: ${user.rolId}');
+    print('🔍 DEBUG - Usuario completo: $user');
+    
+    final roleName = _getUserRoleName(user) ?? 'Usuario';
+    final roleIcon = _getRoleIcon(roleName);
+    final roleColor = _getRoleColor(roleName);
+    
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -208,6 +296,20 @@ class HomePage extends StatelessWidget {
                         .textTheme
                         .titleLarge
                         ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(roleIcon, size: 16, color: roleColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        roleName,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: roleColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -311,7 +413,9 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionGrid(BuildContext context) {
+  Widget _buildActionGrid(BuildContext context, dynamic user) {
+    final allowedItems = _getMenuItemsForRole(user);
+    
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -321,9 +425,9 @@ class HomePage extends StatelessWidget {
         mainAxisSpacing: 16,
         childAspectRatio: 1.0,
       ),
-      itemCount: _menuItems.length,
+      itemCount: allowedItems.length,
       itemBuilder: (context, index) {
-        final item = _menuItems[index];
+        final item = allowedItems[index];
         return _buildActionCard(
           context,
           item: item,
@@ -424,6 +528,9 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildDrawer(BuildContext context, user) {
+    final roleName = _getUserRoleName(user) ?? 'Usuario';
+    final allowedItems = _getMenuItemsForRole(user);
+    
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -447,7 +554,27 @@ class HomePage extends StatelessWidget {
               user.nombreCompleto,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            accountEmail: Text(user.email),
+            accountEmail: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(user.email),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    roleName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.home),
@@ -455,7 +582,7 @@ class HomePage extends StatelessWidget {
             onTap: () => Navigator.pop(context),
           ),
           const Divider(),
-          ..._menuItems.map((item) => ListTile(
+          ...allowedItems.map((item) => ListTile(
                 leading: Icon(item.icon),
                 title: Text(item.title),
                 trailing: !item.isImplemented
@@ -503,6 +630,38 @@ class HomePage extends StatelessWidget {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  /// Obtiene el icono según el rol
+  IconData _getRoleIcon(String roleName) {
+    switch (roleName.toLowerCase()) {
+      case 'administrador':
+        return Icons.admin_panel_settings;
+      case 'gerente':
+        return Icons.business_center;
+      case 'almacenero':
+        return Icons.warehouse;
+      case 'vendedor':
+        return Icons.point_of_sale;
+      default:
+        return Icons.person;
+    }
+  }
+
+  /// Obtiene el color según el rol
+  Color _getRoleColor(String roleName) {
+    switch (roleName.toLowerCase()) {
+      case 'administrador':
+        return Colors.red[700]!;
+      case 'gerente':
+        return Colors.blue[700]!;
+      case 'almacenero':
+        return Colors.green[700]!;
+      case 'vendedor':
+        return Colors.orange[700]!;
+      default:
+        return Colors.grey[700]!;
+    }
   }
 
   Future<void> _handleSync(BuildContext context) async {

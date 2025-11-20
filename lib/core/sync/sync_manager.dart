@@ -862,58 +862,120 @@ class SyncManager {
 
       AppLogger.sync('Sincronizando ${remoteData.length} productos...');
 
-      for (final data in remoteData) {
-        final producto = ProductosCompanion(
-          id: Value(data['id'] as String),
-          nombre: Value(data['nombre'] as String),
-          codigo: Value(data['codigo'] as String),
-          descripcion: Value(data['descripcion'] as String?),
-          categoriaId: Value(data['categoria_id'] as String? ?? ''),
-          unidadMedidaId: Value(data['unidad_medida_id'] as String? ?? ''),
-          proveedorPrincipalId: Value(
-            data['proveedor_principal_id'] as String?,
-          ),
-          precioCompra: Value(data['precio_compra'] as double? ?? 0.0),
-          precioVenta: Value(data['precio_venta'] as double? ?? 0.0),
-          pesoUnitarioKg: Value(data['peso_unitario_kg'] as double?),
-          volumenUnitarioM3: Value(data['volumen_unitario_m3'] as double?),
-          stockMinimo: Value(data['stock_minimo'] as int? ?? 0),
-          stockMaximo: Value(data['stock_maximo'] as int? ?? 0),
-          marca: Value(data['marca'] as String?),
-          gradoCalidad: Value(data['grado_calidad'] as String?),
-          normaTecnica: Value(data['norma_tecnica'] as String?),
-          requiereAlmacenCubierto: Value(
-            data['requiere_almacen_cubierto'] as bool? ?? false,
-          ),
-          materialPeligroso: Value(
-            data['material_peligroso'] as bool? ?? false,
-          ),
-          imagenUrl: Value(data['imagen_url'] as String?),
-          fichaTecnicaUrl: Value(data['ficha_tecnica_url'] as String?),
-          activo: Value(data['activo'] as bool? ?? true),
-          createdAt: Value(
-            data['created_at'] != null
-                ? DateTime.parse(data['created_at'] as String)
-                : DateTime.now(),
-          ),
-          updatedAt: Value(
-            data['updated_at'] != null
-                ? DateTime.parse(data['updated_at'] as String)
-                : DateTime.now(),
-          ),
-          deletedAt: Value(
-            data['deleted_at'] != null
-                ? DateTime.parse(data['deleted_at'] as String)
-                : null,
-          ),
-        );
+      int syncedCount = 0;
+      int skippedCount = 0;
 
-        await _localDb
-            .into(_localDb.productos)
-            .insertOnConflictUpdate(producto);
+      for (final data in remoteData) {
+        try {
+          // Validate foreign key references exist in local DB
+          final categoriaId = data['categoria_id'] as String?;
+          final unidadMedidaId = data['unidad_medida_id'] as String?;
+          final proveedorId = data['proveedor_principal_id'] as String?;
+
+          // Check if required foreign keys exist
+          bool canInsert = true;
+          
+          if (categoriaId != null && categoriaId.isNotEmpty) {
+            final categoriaExists = await (_localDb.select(_localDb.categorias)
+                  ..where((tbl) => tbl.id.equals(categoriaId)))
+                .getSingleOrNull();
+            if (categoriaExists == null) {
+              AppLogger.warning(
+                'Skipping producto ${data['codigo']}: categoria $categoriaId not found',
+              );
+              canInsert = false;
+            }
+          }
+
+          if (canInsert && unidadMedidaId != null && unidadMedidaId.isNotEmpty) {
+            final unidadExists = await (_localDb.select(_localDb.unidadesMedida)
+                  ..where((tbl) => tbl.id.equals(unidadMedidaId)))
+                .getSingleOrNull();
+            if (unidadExists == null) {
+              AppLogger.warning(
+                'Skipping producto ${data['codigo']}: unidad medida $unidadMedidaId not found',
+              );
+              canInsert = false;
+            }
+          }
+
+          if (canInsert && proveedorId != null && proveedorId.isNotEmpty) {
+            final proveedorExists = await (_localDb.select(_localDb.proveedores)
+                  ..where((tbl) => tbl.id.equals(proveedorId)))
+                .getSingleOrNull();
+            if (proveedorExists == null) {
+              AppLogger.warning(
+                'Skipping producto ${data['codigo']}: proveedor $proveedorId not found',
+              );
+              canInsert = false;
+            }
+          }
+
+          if (!canInsert) {
+            skippedCount++;
+            continue;
+          }
+
+          final producto = ProductosCompanion(
+            id: Value(data['id'] as String),
+            nombre: Value(data['nombre'] as String),
+            codigo: Value(data['codigo'] as String),
+            descripcion: Value(data['descripcion'] as String?),
+            categoriaId: Value(categoriaId ?? ''),
+            unidadMedidaId: Value(unidadMedidaId ?? ''),
+            proveedorPrincipalId: Value(proveedorId),
+            precioCompra: Value(data['precio_compra'] as double? ?? 0.0),
+            precioVenta: Value(data['precio_venta'] as double? ?? 0.0),
+            pesoUnitarioKg: Value(data['peso_unitario_kg'] as double?),
+            volumenUnitarioM3: Value(data['volumen_unitario_m3'] as double?),
+            stockMinimo: Value(data['stock_minimo'] as int? ?? 0),
+            stockMaximo: Value(data['stock_maximo'] as int? ?? 0),
+            marca: Value(data['marca'] as String?),
+            gradoCalidad: Value(data['grado_calidad'] as String?),
+            normaTecnica: Value(data['norma_tecnica'] as String?),
+            requiereAlmacenCubierto: Value(
+              data['requiere_almacen_cubierto'] as bool? ?? false,
+            ),
+            materialPeligroso: Value(
+              data['material_peligroso'] as bool? ?? false,
+            ),
+            imagenUrl: Value(data['imagen_url'] as String?),
+            fichaTecnicaUrl: Value(data['ficha_tecnica_url'] as String?),
+            activo: Value(data['activo'] as bool? ?? true),
+            createdAt: Value(
+              data['created_at'] != null
+                  ? DateTime.parse(data['created_at'] as String)
+                  : DateTime.now(),
+            ),
+            updatedAt: Value(
+              data['updated_at'] != null
+                  ? DateTime.parse(data['updated_at'] as String)
+                  : DateTime.now(),
+            ),
+            deletedAt: Value(
+              data['deleted_at'] != null
+                  ? DateTime.parse(data['deleted_at'] as String)
+                  : null,
+            ),
+          );
+
+          await _localDb
+              .into(_localDb.productos)
+              .insertOnConflictUpdate(producto);
+          
+          syncedCount++;
+        } catch (e) {
+          AppLogger.error(
+            'Error syncing producto ${data['codigo']}: $e',
+          );
+          skippedCount++;
+        }
       }
 
-      AppLogger.sync('✅ Productos sincronizados');
+      AppLogger.sync(
+        '✅ Productos sincronizados: $syncedCount de ${remoteData.length}' +
+        (skippedCount > 0 ? ' ($skippedCount omitidos por referencias faltantes)' : ''),
+      );
     } catch (e) {
       AppLogger.error('Error syncing productos: $e');
     }
