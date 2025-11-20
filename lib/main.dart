@@ -5,6 +5,7 @@ import 'package:flutter_management_system/presentation/blocs/auth/auth_event.dar
 import 'package:flutter_management_system/presentation/blocs/inventario/inventario_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/lote/lote_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/movimiento/movimiento_bloc.dart';
+import 'package:flutter_management_system/presentation/blocs/producto/producto_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/proveedor/proveedor_bloc.dart';
 import 'package:flutter_management_system/presentation/blocs/tienda/tienda_bloc.dart';
 import 'package:flutter_management_system/presentation/pages/almacenes/almacenes_list_page.dart';
@@ -60,7 +61,17 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginPage(),
           '/register': (context) => const RegisterPage(),
           '/forgot-password': (context) => const ForgotPasswordPage(),
-          '/home': (context) => const HomePage(),
+          '/home': (context) => MultiBlocProvider(
+            providers: [
+              BlocProvider<ProductoBloc>(
+                create: (context) => getIt<ProductoBloc>(),
+              ),
+              BlocProvider<MovimientoBloc>(
+                create: (context) => getIt<MovimientoBloc>(),
+              ),
+            ],
+            child: const HomePage(),
+          ),
           '/productos': (context) => const ProductosListPage(),
           '/almacenes': (context) => BlocProvider<AlmacenBloc>(
             create: (context) => getIt<AlmacenBloc>(),

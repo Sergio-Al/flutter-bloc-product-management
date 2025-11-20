@@ -5,6 +5,12 @@ import '../../../core/sync/sync_manager.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../blocs/producto/producto_bloc.dart';
+import '../../blocs/producto/producto_state.dart';
+import '../../blocs/producto/producto_event.dart';
+import '../../blocs/movimiento/movimiento_bloc.dart';
+import '../../blocs/movimiento/movimiento_state.dart';
+import '../../blocs/movimiento/movimiento_event.dart';
 
 // Menu Item Model
 class MenuItem {
@@ -141,6 +147,10 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Load data when page is first built
+    context.read<ProductoBloc>().add(LoadProductos());
+    context.read<MovimientoBloc>().add(LoadMovimientos());
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is! AuthAuthenticated) {
@@ -332,26 +342,47 @@ class HomePage extends StatelessWidget {
   Widget _buildQuickStats(BuildContext context) {
     return Row(
       children: [
+        // Productos count from ProductoBloc
         Expanded(
-          child: _buildStatCard(
-            context,
-            icon: Icons.inventory_2,
-            label: 'Productos',
-            value: '---',
-            color: Colors.blue,
+          child: BlocBuilder<ProductoBloc, ProductoState>(
+            builder: (context, state) {
+              String value = '---';
+              if (state is ProductoLoaded) {
+                value = state.productos.length.toString();
+              } else if (state is ProductoEmpty) {
+                value = '0';
+              }
+              return _buildStatCard(
+                context,
+                icon: Icons.inventory_2,
+                label: 'Productos',
+                value: value,
+                color: Colors.blue,
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
+        // Movimientos count from MovimientoBloc
         Expanded(
-          child: _buildStatCard(
-            context,
-            icon: Icons.trending_up,
-            label: 'Movimientos',
-            value: '---',
-            color: Colors.green,
+          child: BlocBuilder<MovimientoBloc, MovimientoState>(
+            builder: (context, state) {
+              String value = '---';
+              if (state is MovimientosLoaded) {
+                value = state.movimientos.length.toString();
+              }
+              return _buildStatCard(
+                context,
+                icon: Icons.trending_up,
+                label: 'Movimientos',
+                value: value,
+                color: Colors.green,
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
+        // Alertas - Could be based on stock levels from inventario
         Expanded(
           child: _buildStatCard(
             context,

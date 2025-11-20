@@ -224,9 +224,48 @@ class ProductoRepositoryImpl extends ProductoRepository {
   }
 
   @override
-  Future<Either<Failure, List<Producto>>> getProductos() {
-    // TODO: implement getProductos
-    throw UnimplementedError();
+  Future<Either<Failure, List<Producto>>> getProductos() async {
+    try {
+      // Fetch all productos from local database
+      final localProductosTables = await productoDao.getAllProductos();
+      final productos = localProductosTables
+          .map(
+            (table) => Producto(
+              id: table.id,
+              nombre: table.nombre,
+              codigo: table.codigo,
+              descripcion: table.descripcion,
+              categoriaId: table.categoriaId,
+              unidadMedidaId: table.unidadMedidaId,
+              proveedorPrincipalId: table.proveedorPrincipalId,
+              precioCompra: table.precioCompra,
+              precioVenta: table.precioVenta,
+              pesoUnitarioKg: table.pesoUnitarioKg,
+              volumenUnitarioM3: table.volumenUnitarioM3,
+              stockMinimo: table.stockMinimo,
+              stockMaximo: table.stockMaximo,
+              marca: table.marca,
+              gradoCalidad: table.gradoCalidad,
+              normaTecnica: table.normaTecnica,
+              requiereAlmacenCubierto: table.requiereAlmacenCubierto,
+              materialPeligroso: table.materialPeligroso,
+              imagenUrl: table.imagenUrl,
+              fichaTecnicaUrl: table.fichaTecnicaUrl,
+              activo: table.activo,
+              createdAt: table.createdAt,
+              updatedAt: table.updatedAt,
+              deletedAt: table.deletedAt,
+              syncId: table.syncId,
+              lastSync: table.lastSync,
+            ),
+          )
+          .toList();
+
+      return Right(productos);
+    } catch (e) {
+      AppLogger.error('Error fetching productos: $e');
+      return Left(CacheFailure(message: 'Failed to fetch productos: $e'));
+    }
   }
 
   @override
@@ -387,9 +426,53 @@ class ProductoRepositoryImpl extends ProductoRepository {
   }
 
   @override
-  Future<Either<Failure, List<Producto>>> searchProductos(String query) {
-    // TODO: implement searchProductos
-    throw UnimplementedError();
+  Future<Either<Failure, List<Producto>>> searchProductos(String query) async {
+    try {
+      // If query is empty, return all productos
+      if (query.isEmpty) {
+        return getProductos();
+      }
+
+      // Search productos by name or code in local database
+      final localProductosTables = await productoDao.searchProductos(query);
+      final productos = localProductosTables
+          .map(
+            (table) => Producto(
+              id: table.id,
+              nombre: table.nombre,
+              codigo: table.codigo,
+              descripcion: table.descripcion,
+              categoriaId: table.categoriaId,
+              unidadMedidaId: table.unidadMedidaId,
+              proveedorPrincipalId: table.proveedorPrincipalId,
+              precioCompra: table.precioCompra,
+              precioVenta: table.precioVenta,
+              pesoUnitarioKg: table.pesoUnitarioKg,
+              volumenUnitarioM3: table.volumenUnitarioM3,
+              stockMinimo: table.stockMinimo,
+              stockMaximo: table.stockMaximo,
+              marca: table.marca,
+              gradoCalidad: table.gradoCalidad,
+              normaTecnica: table.normaTecnica,
+              requiereAlmacenCubierto: table.requiereAlmacenCubierto,
+              materialPeligroso: table.materialPeligroso,
+              imagenUrl: table.imagenUrl,
+              fichaTecnicaUrl: table.fichaTecnicaUrl,
+              activo: table.activo,
+              createdAt: table.createdAt,
+              updatedAt: table.updatedAt,
+              deletedAt: table.deletedAt,
+              syncId: table.syncId,
+              lastSync: table.lastSync,
+            ),
+          )
+          .toList();
+
+      return Right(productos);
+    } catch (e) {
+      AppLogger.error('Error searching productos: $e');
+      return Left(CacheFailure(message: 'Failed to search productos: $e'));
+    }
   }
 
   @override
