@@ -147,18 +147,18 @@ CREATE POLICY "Usuarios pueden ver su propia información"
     TO authenticated
     USING (auth_user_id = auth.uid());
 
-CREATE POLICY "Gerentes pueden ver usuarios de su tienda"
-    ON public.usuarios FOR SELECT
-    TO authenticated
-    USING (
-        (tienda_id = get_user_tienda_id() AND is_manager())
-        OR is_admin()
-    );
+-- CREATE POLICY "Gerentes pueden ver usuarios de su tienda"
+--     ON public.usuarios FOR SELECT
+--     TO authenticated
+--     USING (
+--         (tienda_id = get_user_tienda_id() AND is_manager())
+--         OR is_admin()
+--     );
 
-CREATE POLICY "Solo admin puede crear usuarios"
-    ON public.usuarios FOR INSERT
-    TO authenticated
-    WITH CHECK (is_admin());
+-- CREATE POLICY "Solo admin puede crear usuarios"
+--     ON public.usuarios FOR INSERT
+--     TO authenticated
+--     WITH CHECK (is_admin());
 
 CREATE POLICY "Usuarios pueden actualizar su perfil"
     ON public.usuarios FOR UPDATE
@@ -169,11 +169,11 @@ CREATE POLICY "Usuarios pueden actualizar su perfil"
         AND rol_id = (SELECT rol_id FROM public.usuarios WHERE auth_user_id = auth.uid())
     );
 
-CREATE POLICY "Admin puede actualizar cualquier usuario"
-    ON public.usuarios FOR UPDATE
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
+-- CREATE POLICY "Admin puede actualizar cualquier usuario"
+--     ON public.usuarios FOR UPDATE
+--     TO authenticated
+--     USING (is_admin())
+--     WITH CHECK (is_admin());
 
 -- ============================================
 -- POLÍTICAS: almacenes
@@ -424,10 +424,10 @@ CREATE POLICY "allow_all_delete" ON public.movimientos FOR DELETE TO authenticat
 -- ============================================
 -- POLÍTICAS: auditorias (solo lectura para admin)
 -- ============================================
-CREATE POLICY "Solo admin puede leer auditorías"
-    ON public.auditorias FOR SELECT
-    TO authenticated
-    USING (is_admin());
+-- CREATE POLICY "Solo admin puede leer auditorías"
+--     ON public.auditorias FOR SELECT
+--     TO authenticated
+--     USING (is_admin());
 
 CREATE POLICY "Sistema puede insertar auditorías"
     ON public.auditorias FOR INSERT

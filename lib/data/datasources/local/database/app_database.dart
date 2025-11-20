@@ -219,59 +219,72 @@ class AppDatabase extends _$AppDatabase {
     // Insertar unidades de medida por defecto
     final unidadesDefault = [
       UnidadesMedidaCompanion.insert(
-        id: 'default-unit-id',
+        id: '00000000-0000-0000-0000-000000000001',
         nombre: 'Unidad',
         abreviatura: 'UND',
         tipo: 'Unidad',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-bolsa',
+        id: '00000000-0000-0000-0000-000000000002',
         nombre: 'Bolsa',
         abreviatura: 'BLS',
         tipo: 'Unidad',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-metro',
+        id: '00000000-0000-0000-0000-000000000003',
         nombre: 'Metro',
         abreviatura: 'M',
         tipo: 'Longitud',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-kilo',
+        id: '00000000-0000-0000-0000-000000000004',
         nombre: 'Kilogramo',
         abreviatura: 'KG',
         tipo: 'Peso',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-litro',
+        id: '00000000-0000-0000-0000-000000000005',
         nombre: 'Litro',
         abreviatura: 'LT',
         tipo: 'Volumen',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-plancha',
+        id: '00000000-0000-0000-0000-000000000006',
         nombre: 'Plancha',
         abreviatura: 'PLCH',
         tipo: 'Unidad',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-pieza',
+        id: '00000000-0000-0000-0000-000000000007',
         nombre: 'Pieza',
         abreviatura: 'PZA',
         tipo: 'Unidad',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-metro-cuadrado',
+        id: '00000000-0000-0000-0000-000000000008',
         nombre: 'Metro Cuadrado',
         abreviatura: 'M²',
         tipo: 'Area',
       ),
       UnidadesMedidaCompanion.insert(
-        id: 'unidad-galon',
+        id: '00000000-0000-0000-0000-000000000009',
         nombre: 'Galón',
         abreviatura: 'GAL',
         tipo: 'Volumen',
         factorConversion: const Value(3.785), // litros
+      ),
+      UnidadesMedidaCompanion.insert(
+        id: '00000000-0000-0000-0000-000000000010',
+        nombre: 'Tonelada',
+        abreviatura: 'TON',
+        tipo: 'Peso',
+        factorConversion: const Value(1000.0), // kilogramos
+      ),
+      UnidadesMedidaCompanion.insert(
+        id: '00000000-0000-0000-0000-000000000011',
+        nombre: 'Metro Cúbico',
+        abreviatura: 'M³',
+        tipo: 'Volumen',
       ),
     ];
 
@@ -281,10 +294,25 @@ class AppDatabase extends _$AppDatabase {
       ).insert(unidad, mode: InsertMode.insertOrIgnore);
     }
 
+    /*-- Insertar categorías principales
+INSERT INTO public.categorias (id, nombre, codigo, descripcion, requiere_lote, requiere_certificacion) VALUES
+    ('00000000-0000-0000-0000-000000000001','Sin categoria', 'GEN', 'Categoría genérica para productos sin clasificación', false, false),
+    ('00000000-0000-0000-0000-000000000002','Cemento', 'CEM', 'Cementos y derivados', true, true),
+    ('00000000-0000-0000-0000-000000000003','Fierro y Acero', 'FIE', 'Varillas, mallas, perfiles de acero', false, true),
+    ('00000000-0000-0000-0000-000000000004','Madera', 'MAD', 'Madera y productos derivados', false, false),
+    ('00000000-0000-0000-0000-000000000005','Agregados', 'AGR', 'Arena, grava, piedra', false, false),
+    ('00000000-0000-0000-0000-000000000006','Pintura', 'PIN', 'Pinturas, barnices y lacas', true, false),
+    ('00000000-0000-0000-0000-000000000007','Calaminas', 'CAL', 'Calaminas y materiales de cubierta', false, false),
+    ('00000000-0000-0000-0000-000000000008','Material Eléctrico', 'ELE', 'Cables, interruptores, enchufes', false, false),
+    ('00000000-0000-0000-0000-000000000009','Plomería', 'PLO', 'Tuberías, conexiones, grifería', false, false),
+    ('00000000-0000-0000-0000-000000000010','Herramientas', 'HER', 'Herramientas manuales y eléctricas', false, false),
+    ('00000000-0000-0000-0000-000000000011','Ladrillos y Bloques', 'LAD', 'Ladrillos, bloques, adoquines', false, false)
+ON CONFLICT (codigo) DO NOTHING;--*/
+
     // Insertar categorías por defecto
     final categoriasDefault = [
       CategoriasCompanion.insert(
-        id: 'b0e2f135-6f39-4b19-af25-f534bc1d2346',
+        id: '00000000-0000-0000-0000-000000000001',
         nombre: 'Sin Categoría',
         codigo: 'GEN',
         descripcion: const Value(
@@ -294,7 +322,7 @@ class AppDatabase extends _$AppDatabase {
         requiereCertificacion: const Value(false),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-cemento',
+        id: '00000000-0000-0000-0000-000000000002',
         nombre: 'Cemento',
         codigo: 'CEM',
         descripcion: const Value('Cementos y derivados'),
@@ -302,54 +330,60 @@ class AppDatabase extends _$AppDatabase {
         requiereCertificacion: const Value(true),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-fierro',
+        id: '00000000-0000-0000-0000-000000000003',
         nombre: 'Fierro y Acero',
         codigo: 'FIE',
         descripcion: const Value('Varillas, mallas, perfiles'),
         requiereCertificacion: const Value(true),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-madera',
+        id: '00000000-0000-0000-0000-000000000004',
         nombre: 'Madera',
         codigo: 'MAD',
         descripcion: const Value('Madera y derivados'),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-agregados',
+        id: '00000000-0000-0000-0000-000000000005',
         nombre: 'Agregados',
         codigo: 'AGR',
         descripcion: const Value('Arena, grava, piedra'),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-pintura',
+        id: '00000000-0000-0000-0000-000000000006',
         nombre: 'Pintura',
         codigo: 'PIN',
         descripcion: const Value('Pinturas y barnices'),
         requiereLote: const Value(true),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-calamina',
+        id: '00000000-0000-0000-0000-000000000007',
         nombre: 'Calaminas',
         codigo: 'CAL',
         descripcion: const Value('Calaminas y cubiertas'),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-electricidad',
+        id: '00000000-0000-0000-0000-000000000008',
         nombre: 'Material Eléctrico',
         codigo: 'ELE',
         descripcion: const Value('Cables, interruptores, enchufes'),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-plomeria',
+        id: '00000000-0000-0000-0000-000000000009',
         nombre: 'Plomería',
         codigo: 'PLO',
         descripcion: const Value('Tuberías, conexiones, grifería'),
       ),
       CategoriasCompanion.insert(
-        id: 'cat-herramientas',
+        id: '00000000-0000-0000-0000-000000000010',
         nombre: 'Herramientas',
         codigo: 'HER',
         descripcion: const Value('Herramientas manuales y eléctricas'),
+      ),
+      CategoriasCompanion.insert(
+        id: '00000000-0000-0000-0000-000000000011',
+        nombre: 'Ladrillos y Bloques',
+        codigo: 'LAD',
+        descripcion: const Value('Ladrillos, bloques, adoquines'),
       ),
     ];
 

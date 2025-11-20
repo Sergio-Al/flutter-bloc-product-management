@@ -610,33 +610,33 @@ INSERT INTO public.roles (id, nombre, descripcion, permisos) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Insertar unidades de medida
-INSERT INTO public.unidades_medida (nombre, abreviatura, tipo, factor_conversion) VALUES
-    ('Unidad', 'UND', 'Unidad', 1.0),
-    ('Bolsa', 'BLS', 'Unidad', 1.0),
-    ('Metro', 'M', 'Longitud', 1.0),
-    ('Kilogramo', 'KG', 'Peso', 1.0),
-    ('Litro', 'LT', 'Volumen', 1.0),
-    ('Plancha', 'PLCH', 'Unidad', 1.0),
-    ('Pieza', 'PZA', 'Unidad', 1.0),
-    ('Metro Cuadrado', 'M²', 'Area', 1.0),
-    ('Galón', 'GAL', 'Volumen', 3.785),
-    ('Tonelada', 'TON', 'Peso', 1000.0),
-    ('Metro Cúbico', 'M³', 'Volumen', 1.0)
+INSERT INTO public.unidades_medida (id, nombre, abreviatura, tipo, factor_conversion) VALUES
+    ('00000000-0000-0000-0000-000000000001','Unidad', 'UND', 'Unidad', 1.0),
+    ('00000000-0000-0000-0000-000000000002','Bolsa', 'BLS', 'Unidad', 1.0),
+    ('00000000-0000-0000-0000-000000000003','Metro', 'M', 'Longitud', 1.0),
+    ('00000000-0000-0000-0000-000000000004','Kilogramo', 'KG', 'Peso', 1.0),
+    ('00000000-0000-0000-0000-000000000005','Litro', 'LT', 'Volumen', 1.0),
+    ('00000000-0000-0000-0000-000000000006','Plancha', 'PLCH', 'Unidad', 1.0),
+    ('00000000-0000-0000-0000-000000000007','Pieza', 'PZA', 'Unidad', 1.0),
+    ('00000000-0000-0000-0000-000000000008','Metro Cuadrado', 'M²', 'Area', 1.0),
+    ('00000000-0000-0000-0000-000000000009','Galón', 'GAL', 'Volumen', 3.785),
+    ('00000000-0000-0000-0000-000000000010','Tonelada', 'TON', 'Peso', 1000.0),
+    ('00000000-0000-0000-0000-000000000011','Metro Cúbico', 'M³', 'Volumen', 1.0)
 ON CONFLICT (nombre) DO NOTHING;
 
 -- Insertar categorías principales
-INSERT INTO public.categorias (nombre, codigo, descripcion, requiere_lote, requiere_certificacion) VALUES
-    ('Sin categoria', 'GEN', 'Categoría genérica para productos sin clasificación', false, false),
-    ('Cemento', 'CEM', 'Cementos y derivados', true, true),
-    ('Fierro y Acero', 'FIE', 'Varillas, mallas, perfiles de acero', false, true),
-    ('Madera', 'MAD', 'Madera y productos derivados', false, false),
-    ('Agregados', 'AGR', 'Arena, grava, piedra', false, false),
-    ('Pintura', 'PIN', 'Pinturas, barnices y lacas', true, false),
-    ('Calaminas', 'CAL', 'Calaminas y materiales de cubierta', false, false),
-    ('Material Eléctrico', 'ELE', 'Cables, interruptores, enchufes', false, false),
-    ('Plomería', 'PLO', 'Tuberías, conexiones, grifería', false, false),
-    ('Herramientas', 'HER', 'Herramientas manuales y eléctricas', false, false),
-    ('Ladrillos y Bloques', 'LAD', 'Ladrillos, bloques, adoquines', false, false)
+INSERT INTO public.categorias (id, nombre, codigo, descripcion, requiere_lote, requiere_certificacion) VALUES
+    ('00000000-0000-0000-0000-000000000001','Sin categoria', 'GEN', 'Categoría genérica para productos sin clasificación', false, false),
+    ('00000000-0000-0000-0000-000000000002','Cemento', 'CEM', 'Cementos y derivados', true, true),
+    ('00000000-0000-0000-0000-000000000003','Fierro y Acero', 'FIE', 'Varillas, mallas, perfiles de acero', false, true),
+    ('00000000-0000-0000-0000-000000000004','Madera', 'MAD', 'Madera y productos derivados', false, false),
+    ('00000000-0000-0000-0000-000000000005','Agregados', 'AGR', 'Arena, grava, piedra', false, false),
+    ('00000000-0000-0000-0000-000000000006','Pintura', 'PIN', 'Pinturas, barnices y lacas', true, false),
+    ('00000000-0000-0000-0000-000000000007','Calaminas', 'CAL', 'Calaminas y materiales de cubierta', false, false),
+    ('00000000-0000-0000-0000-000000000008','Material Eléctrico', 'ELE', 'Cables, interruptores, enchufes', false, false),
+    ('00000000-0000-0000-0000-000000000009','Plomería', 'PLO', 'Tuberías, conexiones, grifería', false, false),
+    ('00000000-0000-0000-0000-000000000010','Herramientas', 'HER', 'Herramientas manuales y eléctricas', false, false),
+    ('00000000-0000-0000-0000-000000000011','Ladrillos y Bloques', 'LAD', 'Ladrillos, bloques, adoquines', false, false)
 ON CONFLICT (codigo) DO NOTHING;
 
 -- Insertar una tienda principal

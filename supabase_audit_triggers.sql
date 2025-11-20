@@ -148,18 +148,18 @@ FOR EACH ROW EXECUTE FUNCTION public.registrar_auditoria();
 -- ============================================
 
 -- Mostrar triggers creados
-SELECT 
-    schemaname,
-    tablename,
-    tgname as trigger_name,
-    '✅ TRIGGER CREADO' as status
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE n.nspname = 'public'
-  AND tgname LIKE 'audit_%'
-  AND NOT tgisinternal
-ORDER BY tablename;
+-- SELECT 
+--     schemaname,
+--     tablename,
+--     tgname as trigger_name,
+--     '✅ TRIGGER CREADO' as status
+-- FROM pg_trigger t
+-- JOIN pg_class c ON t.tgrelid = c.oid
+-- JOIN pg_namespace n ON c.relnamespace = n.oid
+-- WHERE n.nspname = 'public'
+--   AND tgname LIKE 'audit_%'
+--   AND NOT tgisinternal
+-- ORDER BY tablename;
 
 -- ============================================
 -- 5. PRUEBA DEL SISTEMA DE AUDITORÍA
