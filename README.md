@@ -864,7 +864,7 @@ test/
             └── sync_bloc_test.dart
 ```
 
-## 🔄 Configuración de Realtime (Opcional)
+## 🔄 Configuración de Realtime (Opcional) NO IMPLEMENTADO AUN
 
 Para habilitar actualizaciones en tiempo real:
 
@@ -889,7 +889,7 @@ final channel = supabase
   .subscribe();
 ```
 
-## 🧪 Testing
+## 🧪 Testing NO IMPLEMENTADO AUN
 
 ### Verificar Base de Datos
 
