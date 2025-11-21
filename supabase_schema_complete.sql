@@ -645,6 +645,16 @@ INSERT INTO public.tiendas (id, nombre, codigo, direccion, ciudad, departamento,
     ('00000000-0000-0000-0000-000000000001', 'Tienda Central', 'TIENDA-CENTRAL', 'Av. Principal #123', 'Ciudad', 'Departamento', '555-1234', 'Lun-Vie 8:00-18:00; Sáb 9:00-14:00')
 ON CONFLICT (id) DO NOTHING;  
 
+-- Insertar un proveedor genérico
+INSERT INTO public.proveedores (id, razon_social, nit, nombre_contacto, telefono, email, direccion, ciudad, tipo_material) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'Proveedor Genérico', 'NIT-GEN-0001', 'Contacto Genérico', '555-0000', 'contacto@generico.com', 'Calle Falsa 123', 'Ciudad', 'Materiales Generales')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insertar un almacén principal para la tienda
+INSERT INTO public.almacenes (id, nombre, codigo, tienda_id, ubicacion, tipo, capacidad_m3, area_m2) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'Almacén Principal', 'ALM-PRINCIPAL', '00000000-0000-0000-0000-000000000001', 'Ubicación Central', 'Principal', 1000.0, 500.0)
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================
 -- VISTAS ÚTILES
 -- ============================================

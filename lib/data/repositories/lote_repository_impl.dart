@@ -31,6 +31,8 @@ class LoteRepositoryImpl extends LoteRepository {
       // Convert entity to Drift LoteTable object using mapper
       final loteTable = lote.toTable();
 
+      AppLogger.info('lote data to save locally: ${lote.toJson()}');
+
       // Save to local database
       await loteDao.insertLote(loteTable);
 
