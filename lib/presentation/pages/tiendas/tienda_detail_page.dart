@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../../domain/entities/tienda.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/tienda/tienda_bloc.dart';
 import '../../blocs/tienda/tienda_event.dart';
 import '../../blocs/tienda/tienda_state.dart';
@@ -40,18 +43,7 @@ class _TiendaDetailPageState extends State<TiendaDetailPage> {
               Navigator.of(context).pop(_wasModified);
             },
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _navigateToEdit(context),
-              tooltip: 'Editar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _confirmDelete(context),
-              tooltip: 'Eliminar',
-            ),
-          ],
+          actions: _buildAppBarActions(context),
         ),
         body: BlocConsumer<TiendaBloc, TiendaState>(
           listener: (context, state) {
@@ -266,32 +258,81 @@ class _TiendaDetailPageState extends State<TiendaDetailPage> {
     }
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text(
-          '¿Está seguro de que desea eliminar esta tienda?\n\n'
-          'Esta acción no se puede deshacer.',
+  /// Build AppBar actions with permission checks
+  /// Edit: Admin and Gerente
+  /// Delete: No one can delete tiendas
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    final actions = <Widget>[];
+
+    // Edit button - Admin and Gerente can edit
+    if (PermissionHelper.canEditTienda(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _navigateToEdit(context),
+          tooltip: 'Editar',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<TiendaBloc>().add(DeleteTienda(id: widget.tiendaId));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
+
+    // Delete button - No one can delete tiendas per PERMISOS.md
+    // Intentionally removed - deletion is prohibited for all roles
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TO RESTORE DELETE FUNCTIONALITY:
+    // 1. Add canDeleteTienda to PermissionHelper (already exists, returns false)
+    // 2. Modify canDeleteTienda to return true for desired roles
+    // 3. Uncomment the block below
+    // 4. Uncomment _confirmDelete method at the bottom of this file
+    // ═══════════════════════════════════════════════════════════════════════════
+    // if (PermissionHelper.canDeleteTienda(userRole)) {
+    //   actions.add(
+    //     IconButton(
+    //       icon: const Icon(Icons.delete),
+    //       onPressed: () => _confirmDelete(context),
+    //       tooltip: 'Eliminar',
+    //     ),
+    //   );
+    // }
+
+    return actions;
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RESTORE DELETE: Uncomment this method to enable delete functionality
+  // ═══════════════════════════════════════════════════════════════════════════
+  // void _confirmDelete(BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (dialogContext) => AlertDialog(
+  //       title: const Text('Confirmar eliminación'),
+  //       content: const Text(
+  //         '¿Está seguro de que desea eliminar esta tienda?\n\n'
+  //         'Esta acción no se puede deshacer.',
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(dialogContext),
+  //           child: const Text('Cancelar'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.pop(dialogContext);
+  //             context.read<TiendaBloc>().add(DeleteTienda(widget.tiendaId));
+  //           },
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: Colors.red,
+  //           ),
+  //           child: const Text('Eliminar'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }

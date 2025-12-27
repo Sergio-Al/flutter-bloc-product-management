@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../../domain/entities/lote.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/lote/lote_bloc.dart';
 import '../../blocs/lote/lote_event.dart';
 import '../../blocs/lote/lote_state.dart';
@@ -40,18 +43,7 @@ class _LoteDetailPageState extends State<LoteDetailPage> {
               Navigator.of(context).pop(_wasModified);
             },
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _navigateToEdit(context),
-              tooltip: 'Editar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _confirmDelete(context),
-              tooltip: 'Eliminar',
-            ),
-          ],
+          actions: _buildAppBarActions(context),
         ),
         body: BlocConsumer<LoteBloc, LoteState>(
           listener: (context, state) {
@@ -396,34 +388,81 @@ class _LoteDetailPageState extends State<LoteDetailPage> {
     }
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text(
-          '¿Está seguro de que desea eliminar este lote?\n\n'
-          'Esta acción no se puede deshacer.',
+  /// Build AppBar actions with permission checks
+  /// Edit: Gerente and Almacenero
+  /// Delete: No one can delete lotes
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    final actions = <Widget>[];
+
+    // Edit button - Gerente and Almacenero can edit
+    if (PermissionHelper.canEditLote(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _navigateToEdit(context),
+          tooltip: 'Editar',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context
-                  .read<LoteBloc>()
-                  .add(DeleteLote(widget.loteId));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
+
+    // Delete button - No one can delete lotes per PERMISOS.md
+    // Intentionally removed - deletion is prohibited for all roles
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TO RESTORE DELETE FUNCTIONALITY:
+    // 1. Add canDeleteLote to PermissionHelper (already exists, returns false)
+    // 2. Modify canDeleteLote to return true for desired roles
+    // 3. Uncomment the block below
+    // 4. Uncomment _confirmDelete method at the bottom of this file
+    // ═══════════════════════════════════════════════════════════════════════════
+    // if (PermissionHelper.canDeleteLote(userRole)) {
+    //   actions.add(
+    //     IconButton(
+    //       icon: const Icon(Icons.delete),
+    //       onPressed: () => _confirmDelete(context),
+    //       tooltip: 'Eliminar',
+    //     ),
+    //   );
+    // }
+
+    return actions;
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RESTORE DELETE: Uncomment this method to enable delete functionality
+  // ═══════════════════════════════════════════════════════════════════════════
+  // void _confirmDelete(BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (dialogContext) => AlertDialog(
+  //       title: const Text('Confirmar eliminación'),
+  //       content: const Text(
+  //         '¿Está seguro de que desea eliminar este lote?\n\n'
+  //         'Esta acción no se puede deshacer.',
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(dialogContext),
+  //           child: const Text('Cancelar'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.pop(dialogContext);
+  //             context.read<LoteBloc>().add(DeleteLote(widget.loteId));
+  //           },
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: Colors.red,
+  //           ),
+  //           child: const Text('Eliminar'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }

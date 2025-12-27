@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../../domain/entities/lote.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/lote/lote_bloc.dart';
 import '../../blocs/lote/lote_event.dart';
 import '../../blocs/lote/lote_state.dart';
@@ -447,21 +450,48 @@ class _LotesListPageState extends State<LotesListPage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => _navigateToCreate(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Crear Lote'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
+            _buildCreateButton(context),
           ],
         ),
       ),
     );
   }
 
+  /// Build create button for empty state with permission check
+  Widget _buildCreateButton(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show create button if user can create lotes
+    if (!PermissionHelper.canCreateLote(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _navigateToCreate(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Crear Lote'),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    );
+  }
+
   Widget _buildFAB(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show FAB if user can create lotes (Gerente and Almacenero)
+    if (!PermissionHelper.canCreateLote(userRole)) {
+      return const SizedBox.shrink();
+    }
+
     return FloatingActionButton.extended(
       onPressed: () => _navigateToCreate(context),
       icon: const Icon(Icons.add),

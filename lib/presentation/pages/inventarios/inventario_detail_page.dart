@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../../domain/entities/inventario.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/inventario/inventario_bloc.dart';
 import '../../blocs/inventario/inventario_event.dart';
 import '../../blocs/inventario/inventario_state.dart';
@@ -41,23 +44,7 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
               Navigator.of(context).pop(_wasModified);
             },
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _navigateToEdit(context),
-              tooltip: 'Editar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.tune),
-              onPressed: () => _navigateToAjuste(context),
-              tooltip: 'Ajustar Stock',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _confirmDelete(context),
-              tooltip: 'Eliminar',
-            ),
-          ],
+          actions: _buildAppBarActions(context),
         ),
         body: BlocConsumer<InventarioBloc, InventarioState>(
           listener: (context, state) {
@@ -291,39 +278,55 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ElevatedButton.icon(
-              onPressed: () => _showReservarDialog(context, inventario),
-              icon: const Icon(Icons.lock, size: 16),
-              label: const Text('Reservar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            if (inventario.cantidadReservada > 0)
-              ElevatedButton.icon(
-                onPressed: () => _showLiberarDialog(context, inventario),
-                icon: const Icon(Icons.lock_open, size: 16),
-                label: const Text('Liberar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ElevatedButton.icon(
-              onPressed: () => _navigateToAjuste(context),
-              icon: const Icon(Icons.tune, size: 16),
-              label: const Text('Ajustar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
+        child: Builder(
+          builder: (context) {
+            final authState = context.watch<AuthBloc>().state;
+            String? userRole;
+            if (authState is AuthAuthenticated) {
+              userRole = authState.user.rolNombre;
+            }
+
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Reserve: Gerente, Almacenero, Vendedor (partial)
+                if (PermissionHelper.canReserveStock(userRole))
+                  ElevatedButton.icon(
+                    onPressed: () => _showReservarDialog(context, inventario),
+                    icon: const Icon(Icons.lock, size: 16),
+                    label: const Text('Reservar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                // Release: Gerente, Almacenero only
+                if (inventario.cantidadReservada > 0 &&
+                    PermissionHelper.canReleaseStock(userRole))
+                  ElevatedButton.icon(
+                    onPressed: () => _showLiberarDialog(context, inventario),
+                    icon: const Icon(Icons.lock_open, size: 16),
+                    label: const Text('Liberar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                // Adjust: Gerente, Almacenero only
+                if (PermissionHelper.canAdjustInventario(userRole))
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToAjuste(context),
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: const Text('Ajustar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -545,32 +548,91 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text(
-          '¿Está seguro de que desea eliminar este registro de inventario?\n\n'
-          'Esta acción no se puede deshacer.',
+  /// Build AppBar actions with permission checks
+  /// Edit/Adjust: Gerente and Almacenero
+  /// Delete: No one can delete inventario
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    final actions = <Widget>[];
+
+    // Edit button - Gerente and Almacenero can edit
+    if (PermissionHelper.canEditInventario(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _navigateToEdit(context),
+          tooltip: 'Editar',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<InventarioBloc>().add(DeleteInventario(widget.inventarioId));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
+
+    // Adjust button - Gerente and Almacenero can adjust stock
+    if (PermissionHelper.canAdjustInventario(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.tune),
+          onPressed: () => _navigateToAjuste(context),
+          tooltip: 'Ajustar Stock',
+        ),
+      );
+    }
+
+    // Delete button - No one can delete inventario per PERMISOS.md
+    // Intentionally removed - deletion is prohibited for all roles
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TO RESTORE DELETE FUNCTIONALITY:
+    // 1. Add canDeleteInventario to PermissionHelper if not exists
+    // 2. Uncomment the block below
+    // 3. Uncomment _confirmDelete method at the bottom of this file
+    // ═══════════════════════════════════════════════════════════════════════════
+    // if (PermissionHelper.canDeleteInventario(userRole)) {
+    //   actions.add(
+    //     IconButton(
+    //       icon: const Icon(Icons.delete),
+    //       onPressed: () => _confirmDelete(context),
+    //       tooltip: 'Eliminar',
+    //     ),
+    //   );
+    // }
+
+    return actions;
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RESTORE DELETE: Uncomment this method to enable delete functionality
+  // ═══════════════════════════════════════════════════════════════════════════
+  // void _confirmDelete(BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (dialogContext) => AlertDialog(
+  //       title: const Text('Confirmar eliminación'),
+  //       content: const Text(
+  //         '¿Está seguro de que desea eliminar este registro de inventario?\n\n'
+  //         'Esta acción no se puede deshacer.',
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(dialogContext),
+  //           child: const Text('Cancelar'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.pop(dialogContext);
+  //             context.read<InventarioBloc>().add(DeleteInventario(widget.inventarioId));
+  //           },
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: Colors.red,
+  //           ),
+  //           child: const Text('Eliminar'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }

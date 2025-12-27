@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/tienda/tienda_bloc.dart';
 import '../../blocs/tienda/tienda_event.dart';
 import '../../blocs/tienda/tienda_state.dart';
@@ -113,11 +116,7 @@ class _TiendasListView extends StatelessWidget {
           return const Center(child: Text('Estado desconocido'));
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToCreate(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva Tienda'),
-      ),
+      floatingActionButton: _buildFAB(context),
     );
   }
 
@@ -130,11 +129,7 @@ class _TiendasListView extends StatelessWidget {
           const SizedBox(height: 16),
           const Text('No hay tiendas'),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _navigateToCreate(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Crear Tienda'),
-          ),
+          _buildCreateButton(context),
         ],
       ),
     );
@@ -212,5 +207,46 @@ class _TiendasListView extends StatelessWidget {
     if (result == true && context.mounted) {
       context.read<TiendaBloc>().add(const LoadTiendasActivas());
     }
+  }
+
+  /// Build FAB with permission check
+  /// Only Admin can create tiendas
+  Widget _buildFAB(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show FAB if user can create tiendas (Admin only)
+    if (!PermissionHelper.canCreateTienda(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return FloatingActionButton.extended(
+      onPressed: () => _navigateToCreate(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Nueva Tienda'),
+    );
+  }
+
+  /// Build create button for empty state with permission check
+  Widget _buildCreateButton(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show create button if user can create tiendas
+    if (!PermissionHelper.canCreateTienda(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _navigateToCreate(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Crear Tienda'),
+    );
   }
 }

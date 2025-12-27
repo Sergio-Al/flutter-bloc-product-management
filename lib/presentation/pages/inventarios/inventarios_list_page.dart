@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../../domain/entities/inventario.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/inventario/inventario_bloc.dart';
 import '../../blocs/inventario/inventario_event.dart';
 import '../../blocs/inventario/inventario_state.dart';
@@ -116,11 +119,28 @@ class _InventariosListPageState extends State<InventariosListPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToCreate(context),
-        tooltip: 'Nuevo Inventario',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _buildFAB(context),
+    );
+  }
+
+  /// Build FAB with permission check
+  /// Create: Gerente and Almacenero can create inventario
+  Widget _buildFAB(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show FAB if user can create inventario (Gerente and Almacenero)
+    if (!PermissionHelper.canCreateInventario(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return FloatingActionButton(
+      onPressed: () => _navigateToCreate(context),
+      tooltip: 'Nuevo Inventario',
+      child: const Icon(Icons.add),
     );
   }
 

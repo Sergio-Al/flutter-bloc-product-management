@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
 import '../../blocs/almacen/almacen_bloc.dart';
 import '../../blocs/almacen/almacen_event.dart';
 import '../../blocs/almacen/almacen_state.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import 'almacen_detail_page.dart';
 import 'almacen_form_page.dart';
 
@@ -102,11 +105,7 @@ class _AlmacenesListView extends StatelessWidget {
           return const Center(child: Text('Estado desconocido'));
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToCreate(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Almacén'),
-      ),
+      floatingActionButton: _buildFAB(context),
     );
   }
 
@@ -119,11 +118,7 @@ class _AlmacenesListView extends StatelessWidget {
           const SizedBox(height: 16),
           const Text('No hay almacenes'),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _navigateToCreate(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Crear Almacén'),
-          ),
+          _buildCreateButton(context),
         ],
       ),
     );
@@ -217,5 +212,46 @@ class _AlmacenesListView extends StatelessWidget {
     if (result == true && context.mounted) {
       context.read<AlmacenBloc>().add(const LoadAlmacenesActivos());
     }
+  }
+
+  /// Build FAB with permission check
+  /// Only Gerente can create almacenes
+  Widget _buildFAB(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show FAB if user can create almacenes (Gerente only)
+    if (!PermissionHelper.canCreateAlmacen(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return FloatingActionButton.extended(
+      onPressed: () => _navigateToCreate(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Nuevo Almacén'),
+    );
+  }
+
+  /// Build create button for empty state with permission check
+  Widget _buildCreateButton(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show create button if user can create almacenes
+    if (!PermissionHelper.canCreateAlmacen(userRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _navigateToCreate(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Crear Almacén'),
+    );
   }
 }
