@@ -272,222 +272,66 @@ erDiagram
 
 ## 📦 Requisitos Previos
 
-- Flutter SDK (>=3.0.0)
-- Dart SDK (>=3.0.0)
-- Cuenta en [Supabase](https://supabase.com)
+### Flutter App
+- Flutter SDK (>=3.9.0)
+- Dart SDK (>=3.9.0)
 - IDE: VS Code o Android Studio
+- Xcode (para iOS - solo macOS)
+- Android Studio o Android SDK (para Android)
 
-## 🚀 Instalación
+### Backend NestJS (Requerido)
+- Node.js (>=18.x)
+- PostgreSQL (>=14)
+- Backend NestJS corriendo (ver [README_NESTJS.md](./README_NESTJS.md))
+
+---
+
+## 🚀 Instalación y Configuración
+
+### Paso 1: Clonar el Repositorio
 
 ```bash
 # Clonar el repositorio
 git clone https://github.com/Sergio-Al/flutter-bloc-product-management.git
 cd flutter_management_system
 
-# Instalar dependencias
+# Cambiar a la rama con integración NestJS
+git checkout feature/nest-remote
+```
+
+### Paso 2: Instalar Dependencias
+
+```bash
+# Instalar dependencias de Flutter
 flutter pub get
 
-# Generar código de Drift
+# Generar código de Drift (base de datos local)
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-## 📝 Configuración de Supabase - Documentación Completa
+### Paso 3: Configurar Variables de Entorno
 
-### 🚀 Inicio Rápido
+1. Crea un archivo `.env` en la raíz del proyecto:
 
-Para configurar Supabase desde cero, sigue esta guía paso a paso:
-
-👉 **[SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md)** - Guía completa de configuración
-
-### 📚 Archivos SQL Disponibles
-
-| Archivo | Descripción | Orden | Obligatorio |
-|---------|-------------|-------|-------------|
-| `supabase_schema_complete.sql` | Schema completo (tablas, índices, triggers, datos seed) | 1️⃣ | ✅ SÍ |
-| `supabase_rls_policies.sql` | Políticas de seguridad RLS | 2️⃣ | ✅ SÍ |
-| `supabase_trigger_complete.sql` | Trigger de creación automática de perfiles | 3️⃣ | ✅ SÍ |
-| `supabase_audit_triggers.sql` | Sistema de auditoría (opcional) | 4️⃣ | ⚠️ OPCIONAL |
-
-### 📖 Documentación Adicional
-
-- **[SUPABASE_README.md](./SUPABASE_README.md)** - Índice de todos los archivos SQL con descripciones
-- **[CHANGELOG_SUPABASE.md](./CHANGELOG_SUPABASE.md)** - Historial de cambios y soluciones a problemas
-
-### ⚡ Resumen Ejecutivo
-
-**¿Qué hace cada script?**
-
-1. **supabase_schema_complete.sql**: Crea 12 tablas, índices, triggers básicos y datos iniciales
-2. **supabase_rls_policies.sql**: Configura seguridad con políticas inline (sin funciones problemáticas)
-3. **supabase_trigger_complete.sql**: Crea perfiles automáticamente al registrar usuarios
-4. **supabase_audit_triggers.sql**: Habilita logging de cambios en tablas críticas
-
-**Orden de ejecución:**
 ```bash
-1. supabase_schema_complete.sql    ✅ Obligatorio
-2. supabase_rls_policies.sql       ✅ Obligatorio
-3. supabase_trigger_complete.sql   ✅ Obligatorio
-4. supabase_audit_triggers.sql     ⚠️  Opcional (recomendado para producción)
+# Copiar el archivo de ejemplo
+cp .env.example .env
 ```
 
-### 🔐 Políticas RLS - Resumen
-
-Las políticas RLS están configuradas usando **EXISTS() inline** para evitar problemas de type casting:
-
-```sql
--- ✅ Ejemplo de política corregida
-CREATE POLICY "Gerentes pueden crear productos"
-    ON public.productos FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.usuarios u
-            JOIN public.roles r ON u.rol_id = r.id
-            WHERE u.auth_user_id = auth.uid()
-            AND r.nombre IN ('Gerente', 'Administrador')
-            AND u.activo = true
-        )
-    );
-```
-
-**Permisos por rol:**
-- **Administrador**: Acceso completo
-- **Gerente**: Crear/actualizar productos, gestionar tienda
-- **Almacenero**: Gestión de inventarios y movimientos
-- **Vendedor**: Solo lectura
-
-Ver archivo completo: [supabase_rls_policies.sql](./supabase_rls_policies.sql)
-
-## ⚙️ Configuración de Supabase
-
-### Paso 1: Crear Proyecto en Supabase
-
-1. Ve a [https://supabase.com](https://supabase.com)
-2. Crea una cuenta o inicia sesión
-3. Crea un nuevo proyecto
-4. Anota tu **URL** y **ANON KEY** (en Settings > API)
-
-### Paso 2: Ejecutar el Schema SQL
-
-1. Ve a **SQL Editor** en Supabase Dashboard
-2. Copia y pega el contenido completo de `supabase_schema_complete.sql`
-3. Ejecuta el script (puede tardar unos segundos)
-4. Luego copia y pega el contenido de `supabase_rls_policies.sql`
-5. Ejecuta las políticas RLS
-
-### Paso 3: Configurar Autenticación
-
-1. Ve a **Authentication > Settings** en Supabase
-2. Habilita **Email authentication**
-3. Configura **Site URL**: `http://localhost:3000` (desarrollo)
-4. Configura **Redirect URLs** para producción
-
-### Paso 4: Configurar Storage (Opcional)
-
-Para habilitar imágenes de productos:
-
-1. Ve a **Storage** en Supabase
-2. Crea un bucket llamado `productos-images`
-3. Ejecuta estas políticas SQL:
-
-```sql
--- Permitir lectura pública de imágenes
-CREATE POLICY "Las imágenes de productos son públicas"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'productos-images');
-
--- Permitir subida de imágenes autenticadas
-CREATE POLICY "Usuarios autenticados pueden subir imágenes"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'productos-images' 
-  AND auth.role() = 'authenticated'
-);
-
--- Permitir actualización de imágenes
-CREATE POLICY "Usuarios autenticados pueden actualizar imágenes"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'productos-images' 
-  AND auth.role() = 'authenticated'
-);
-```
-
-### Paso 5: Crear Usuario Admin Inicial
-
-1. Ve a **Authentication > Users** en Supabase
-2. Crea un usuario manualmente (ejemplo: `admin@tuempresa.com`)
-3. Ejecuta este SQL para asignar rol de admin:
-
-```sql
-INSERT INTO public.usuarios (
-  email, 
-  nombre_completo, 
-  rol_id, 
-  auth_user_id, 
-  activo
-) VALUES (
-  'admin@tuempresa.com',
-  'Administrador del Sistema',
-  '00000000-0000-0000-0000-000000000001', -- ID del rol Administrador
-  'UUID-DEL-USUARIO-AUTH', -- Copiar del panel de Authentication
-  true
-);
-```
-
-### Paso 5.1 🔧 Configuración del Trigger de Autenticación
-
-#### Trigger Automático de Creación de Perfil
-
-Cuando un usuario se registra en Supabase Auth, necesitas que automáticamente se cree su perfil en la tabla `usuarios`. Para esto, ejecuta el archivo **`supabase_trigger_complete.sql`** en tu proyecto.
-
-Este script hace lo siguiente:
-- ✅ Crea un trigger que detecta nuevos usuarios en `auth.users`
-- ✅ Asigna automáticamente el rol "Vendedor" por defecto
-- ✅ Asigna la primera tienda activa disponible
-- ✅ Configura políticas RLS para que los usuarios puedan leer/actualizar su perfil
-- ✅ Corrige la función de auditoría para usar el campo correcto (`id` en lugar de `usuario_id`)
-
-**Cómo ejecutar:**
-1. Ve a **Supabase Dashboard** → **SQL Editor**
-2. Abre el archivo `supabase_trigger_complete.sql` del proyecto
-3. Copia y pega todo el contenido
-4. Haz click en **Run**
-5. Verifica que veas el mensaje: `✅ TRIGGER CREADO CORRECTAMENTE`
-
-**Requisitos previos:**
-- Debe existir al menos un rol con nombre "vendedor" en la tabla `roles`
-- Debe existir al menos una tienda activa en la tabla `tiendas`
-
-#### Deshabilitar Confirmación de Email (Desarrollo)
-
-Durante el desarrollo, es recomendable deshabilitar la confirmación de email para evitar rate limits:
-
-1. Ve a **Supabase Dashboard** → **Authentication** → **Settings**
-2. En **Email Auth**, desactiva: **"Enable email confirmations"**
-3. Guarda los cambios
-
-Esto te permitirá registrar usuarios sin esperar emails de confirmación.
-
-⚠️ **Importante:** En producción, vuelve a habilitar la confirmación de email para seguridad.
-
-### Paso 6: Probar la Conexión
-
-1. Ejecuta tu app Flutter
-2. Intenta hacer login con el usuario admin
-3. Verifica que puedes crear/leer datos
-
-## 🔐 Variables de Entorno
-
-### Archivo `.env.example`
+2. Edita el archivo `.env` con tu configuración:
 
 ```bash
 # NestJS Backend Configuration
 API_BASE_URL=http://localhost:3000
 
-# Supabase Configuration (legacy - for data sync)
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu-anon-key-muy-larga-aqui
+# Para iOS Simulator
+# API_BASE_URL=http://localhost:3000
+
+# Para Android Emulator
+# API_BASE_URL=http://10.0.2.2:3000
+
+# Para dispositivo físico (usar tu IP local)
+# API_BASE_URL=http://192.168.1.100:3000
 
 # Debug Mode
 DEBUG_MODE=true
@@ -496,29 +340,162 @@ DEBUG_MODE=true
 ENVIRONMENT=development
 ```
 
-### Configuración
+### Paso 4: Configuración Específica por Plataforma
 
-1. Copia `.env.example` como `.env`
-2. Configura `API_BASE_URL` según tu entorno:
-   - **iOS Simulator**: `http://localhost:3000`
-   - **Android Emulator**: `http://10.0.2.2:3000`
-   - **Dispositivo físico**: `http://TU_IP_LOCAL:3000`
-3. **NUNCA** subas el archivo `.env` a Git
+#### iOS (macOS)
 
-### Agregar a `.gitignore`
-
-```
-# Environment files
-.env
-.env.local
-.env.*.local
+1. Instalar CocoaPods (si no lo tienes):
+```bash
+sudo gem install cocoapods
 ```
 
-### Ejecutar con Variables de Entorno
+2. Instalar dependencias de iOS:
+```bash
+cd ios
+pod install
+cd ..
+```
+
+3. **Importante**: El archivo `ios/Runner/Info.plist` ya está configurado para permitir conexiones HTTP locales (necesario para desarrollo con backend local).
+
+#### Android
+
+No se requiere configuración adicional. El proyecto ya está configurado para permitir conexiones HTTP en modo debug.
+
+### Paso 5: Verificar que el Backend está Corriendo
+
+Antes de ejecutar la app, asegúrate de que el backend NestJS esté corriendo:
 
 ```bash
-# Desarrollo (usando valores del .env)
+# En otra terminal, en el directorio del backend NestJS
+npm run start:dev
+```
+
+El backend debe estar disponible en `http://localhost:3000`.
+
+---
+
+## ▶️ Ejecutar la Aplicación
+
+### Desarrollo
+
+```bash
+# Listar dispositivos disponibles
+flutter devices
+
+# Ejecutar en modo debug (usa el .env automáticamente)
 flutter run
+
+# Ejecutar en un dispositivo específico
+flutter run -d <device_id>
+
+# Ejecutar en iOS Simulator
+flutter run -d "iPhone 15 Pro"
+
+# Ejecutar en Android Emulator
+flutter run -d emulator-5554
+
+# Ejecutar con hot reload habilitado (por defecto)
+flutter run
+
+# Ejecutar con logs detallados
+flutter run --verbose
+```
+
+### Modo Release (Testing)
+
+```bash
+# iOS
+flutter run --release -d <ios_device>
+
+# Android
+flutter run --release -d <android_device>
+```
+
+---
+
+## 🔨 Build (Compilación)
+
+### Android
+
+```bash
+# APK de debug
+flutter build apk --debug
+
+# APK de release
+flutter build apk --release
+
+# APK por arquitectura (más pequeños)
+flutter build apk --split-per-abi --release
+
+# App Bundle para Play Store
+flutter build appbundle --release
+```
+
+Los archivos generados estarán en:
+- APK: `build/app/outputs/flutter-apk/`
+- AAB: `build/app/outputs/bundle/release/`
+
+### iOS
+
+```bash
+# Build para simulador
+flutter build ios --simulator
+
+# Build para dispositivo (requiere certificados)
+flutter build ios --release
+
+# Build para App Store
+flutter build ipa --release
+```
+
+Los archivos generados estarán en:
+- `build/ios/iphoneos/Runner.app`
+- `build/ios/ipa/` (para IPA)
+
+---
+
+## 🔐 Variables de Entorno
+
+### Archivo `.env`
+
+```bash
+# ============================================
+# CONFIGURACIÓN DEL BACKEND NESTJS
+# ============================================
+
+# URL base del API NestJS
+# - iOS Simulator: http://localhost:3000
+# - Android Emulator: http://10.0.2.2:3000
+# - Dispositivo físico: http://TU_IP_LOCAL:3000
+API_BASE_URL=http://localhost:3000
+
+# ============================================
+# CONFIGURACIÓN DE DESARROLLO
+# ============================================
+
+# Habilitar modo debug (logs adicionales)
+DEBUG_MODE=true
+
+# Entorno (development, staging, production)
+ENVIRONMENT=development
+```
+
+### Configuración por Entorno
+
+| Plataforma | API_BASE_URL |
+|------------|--------------|
+| iOS Simulator | `http://localhost:3000` |
+| Android Emulator | `http://10.0.2.2:3000` |
+| Dispositivo físico (mismo WiFi) | `http://TU_IP_LOCAL:3000` |
+| Producción | `https://tu-api.com` |
+
+### ⚠️ Importante
+
+- **NUNCA** subas el archivo `.env` a Git
+- El archivo `.env` ya está en `.gitignore`
+
+---
 
 ## 🛠️ Comandos Útiles
 
@@ -539,22 +516,59 @@ flutter clean
 flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 
-# Ejecutar app con variables de entorno
-flutter run --dart-define-from-file=.env
+# Ver dependencias desactualizadas
+flutter pub outdated
+
+# Actualizar dependencias
+flutter pub upgrade
+```
+
+### Análisis de Código
+
+```bash
+# Analizar código (linting)
+flutter analyze
+
+# Formatear código
+dart format lib/
+
+# Verificar problemas
+flutter doctor
+```
+
+### Testing
+
+```bash
+# Ejecutar todos los tests
+flutter test
+
+# Ejecutar tests con coverage
+flutter test --coverage
+
+# Ejecutar un test específico
+flutter test test/widget_test.dart
 ```
 
 ### Build
 
 ```bash
-# Android APK
-flutter build apk --dart-define-from-file=.env
+# Android APK (debug)
+flutter build apk --debug
 
-# Android App Bundle
-flutter build appbundle --dart-define-from-file=.env
+# Android APK (release)
+flutter build apk --release
 
-# iOS
-flutter build ios --dart-define-from-file=.env
+# Android App Bundle (Play Store)
+flutter build appbundle --release
+
+# iOS (requiere certificados de Apple)
+flutter build ios --release
+
+# iOS IPA (para distribución)
+flutter build ipa --release
 ```
+
+---
 
 ## 📁 Estructura del Proyecto
 
@@ -869,120 +883,96 @@ test/
             └── sync_bloc_test.dart
 ```
 
-## 🔄 Configuración de Realtime (Opcional) NO IMPLEMENTADO AUN
-
-Para habilitar actualizaciones en tiempo real:
-
-### 1. Habilitar Replicación en Supabase
-
-1. Ve a **Database > Replication**
-2. Habilita replicación para las tablas: `productos`, `inventarios`, `movimientos`
-
-### 2. Implementación en Flutter
-
-```dart
-final channel = supabase
-  .channel('public:productos')
-  .onPostgresChanges(
-    event: PostgresChangeEvent.all,
-    schema: 'public',
-    table: 'productos',
-    callback: (payload) {
-      print('Cambio detectado: ${payload.newRecord}');
-    },
-  )
-  .subscribe();
-```
-
-## 🧪 Testing NO IMPLEMENTADO AUN
-
-### Verificar Base de Datos
-
-```sql
--- Verificar roles
-SELECT * FROM public.roles;
-
--- Verificar categorías
-SELECT * FROM public.categorias;
-
--- Verificar unidades de medida
-SELECT * FROM public.unidades_medida;
-
--- Verificar que RLS está habilitado
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
-AND rowsecurity = true;
-
--- Verificar políticas RLS
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
-FROM pg_policies 
-WHERE schemaname = 'public';
-```
-
-## 💾 Backup y Restore
-
-### Hacer Backup
-
-1. En Supabase Dashboard: **Database > Backups**
-2. O usar `pg_dump` si tienes acceso directo a la base de datos
-
-### Restore
-
-1. Supabase Dashboard: **SQL Editor**
-2. Pegar tu backup SQL y ejecutar
-
-## 📊 Monitoring y Logs
-
-Ver logs en tiempo real:
-
-- **Postgres Logs**: Supabase Dashboard > Logs > Postgres Logs
-- **API Logs**: Supabase Dashboard > Logs > API Logs
+---
 
 ## 🔒 Seguridad
 
 ### Checklist
 
-- ✅ RLS habilitado en todas las tablas
-- ✅ Políticas RLS configuradas correctamente
+- ✅ Autenticación JWT con tokens de acceso y refresh
+- ✅ MFA (Multi-Factor Authentication) disponible
 - ✅ Variables de entorno no commiteadas (`.env` en `.gitignore`)
-- ✅ `ANON_KEY` es pública, `SERVICE_KEY` es privada (no usar en frontend)
-- ✅ Auth configurada con PKCE flow
-- ✅ Validaciones en el backend (triggers y funciones)
-- ✅ Auditoría habilitada en tablas críticas
+- ✅ Permisos basados en roles (RBAC)
+- ✅ Validaciones en frontend y backend
+- ✅ Base de datos local encriptada (SQLite/Drift)
+- ✅ Conexiones HTTPS en producción
+
+---
 
 ## 🐛 Troubleshooting
 
-### Error: "relation does not exist"
+### Error: Connection refused (iOS Simulator)
 
-**Solución**: Verificar que ejecutaste todo el schema SQL en Supabase.
+**Problema**: La app no puede conectar a `localhost:3000`
 
-### Error: "permission denied for table"
+**Solución**:
+1. Verificar que el backend NestJS está corriendo
+2. Usar `localhost` (no `127.0.0.1`) para iOS Simulator
+3. Verificar que `Info.plist` permite conexiones HTTP locales
 
-**Solución**: Revisar políticas RLS, puede que falte una policy.
+### Error: Connection timeout (Android Emulator)
 
-### Error: "JWT expired"
+**Problema**: Timeout conectando al backend
 
-**Solución**: El token expiró, implementar refresh automático en la app.
+**Solución**:
+1. Usar `10.0.2.2:3000` en lugar de `localhost`
+2. Verificar firewall permite conexiones
+3. Verificar que el backend acepta conexiones externas
 
-### Error: "row level security policy violation"
+### Error: 401 Unauthorized
 
-**Solución**: El usuario no tiene permisos según las políticas RLS definidas.
+**Problema**: Token inválido o expirado
 
-### No se sincronizan cambios en realtime
+**Solución**:
+1. Verificar que el token se está enviando en headers
+2. Cerrar sesión y volver a iniciar
+3. Verificar que el backend está corriendo correctamente
 
-**Solución**: Habilitar replicación en Database > Replication para las tablas necesarias.
+### Error: Drift/SQLite - "relation does not exist"
+
+**Problema**: Tablas no creadas en la base de datos local
+
+**Solución**:
+1. Limpiar la app y reinstalar
+2. O eliminar la base de datos local y reiniciar
 
 ### Errores de compilación en DAOs
 
-**Solución**: Ejecutar `flutter pub run build_runner build --delete-conflicting-outputs` para regenerar archivos `.g.dart`.
+**Problema**: Archivos `.g.dart` desactualizados
+
+**Solución**: Ejecutar:
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+### Error: "Foreign Key Constraint" en SQLite local
+
+**Problema**: Error al guardar registros relacionados
+
+**Solución**:
+1. Verificar que los registros padre existen
+2. Cerrar sesión y volver a iniciar para sincronizar datos base
+
+### La app no conecta en dispositivo físico
+
+**Problema**: No puede alcanzar el backend
+
+**Solución**:
+1. Usar la IP local de tu computadora (no `localhost`)
+2. Ambos dispositivos deben estar en la misma red WiFi
+3. Verificar que el firewall no bloquea el puerto 3000
+
+---
 
 ## 📚 Recursos
 
 - [Documentación de Flutter](https://docs.flutter.dev/)
-- [Documentación de Drift](https://drift.simonbinder.eu/)
-- [Documentación de Supabase](https://supabase.com/docs)
+- [Documentación de Drift (SQLite)](https://drift.simonbinder.eu/)
+- [Documentación de NestJS](https://docs.nestjs.com/)
 - [Patrón BLoC](https://bloclibrary.dev/)
+- [README del Backend NestJS](./README_NESTJS.md)
+
+---
 
 ## 📄 Licencia
 
@@ -992,3 +982,8 @@ Este proyecto es privado y confidencial.
 
 Para contribuir al proyecto, contactar al equipo de desarrollo.
 
+---
+
+**Última actualización**: Diciembre 2025  
+**Branch principal**: `feature/nest-remote`  
+**Backend**: NestJS + PostgreSQL
