@@ -52,10 +52,11 @@ dependencies:
   path_provider: ^2.1.2
   path: ^1.9.0
 
-  # Backend - Supabase
+  # Backend - Supabase (legacy)
   supabase_flutter: ^2.3.4
 
   # Networking
+  http: ^1.2.0
   dio: ^5.4.1
   connectivity_plus: ^5.0.2
   internet_connection_checker: ^1.0.0+1

@@ -1,11 +1,28 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_datasource.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../../core/config/env_config.dart';
 import '../../../core/errors/exceptions.dart' as app_exceptions;
 import '../../../core/utils/logger.dart';
+import 'auth_remote_datasource.dart';
 
-/// Datasource remoto para operaciones de productos con Supabase
-class ProductoRemoteDataSource extends SupabaseDataSource {
-  static const String _tableName = 'productos';
+/// Datasource remoto para operaciones de productos con NestJS backend
+class ProductoRemoteDataSource {
+  final AuthRemoteDataSource _authDataSource;
+
+  ProductoRemoteDataSource({required AuthRemoteDataSource authDataSource})
+    : _authDataSource = authDataSource;
+
+  /// Base URL del API (configurable desde .env)
+  static String get baseUrl => EnvConfig.apiUrl;
+
+  /// Headers comunes para todas las peticiones (incluye auth token)
+  Map<String, String> get _headers {
+    final token = _authDataSource.getAccessToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   /// Obtiene todos los productos
   ///
@@ -17,81 +34,107 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     int? limit,
     int? offset,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo productos');
+    try {
+      AppLogger.database('Obteniendo productos desde NestJS');
 
-      // Build the query with filters BEFORE select
-      var filterQuery = SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
-            *,
-            categoria:categorias(*),
-            unidad_medida:unidades_medida(*),
-            proveedor_principal:proveedores(*)
-          ''');
-
-      // Apply filters after select (these work on PostgrestTransformBuilder)
-      var query = filterQuery
-          .isFilter('deleted_at', null)
-          .order('nombre', ascending: true);
-
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (lastSync != null) {
+        queryParams['lastSync'] = lastSync.toIso8601String();
+      }
       if (limit != null) {
-        query = query.limit(limit);
+        queryParams['limit'] = limit.toString();
       }
-
       if (offset != null) {
-        query = query.range(offset, offset + (limit ?? 10) - 1);
+        queryParams['offset'] = offset.toString();
       }
 
-      final response = await query;
+      final uri = Uri.parse(
+        '$baseUrl/productos',
+      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      AppLogger.database('✅ ${response.length} productos obtenidos');
-      return List<Map<String, dynamic>>.from(response);
-    });
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} productos obtenidos');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener productos: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
-  // Obtiene los productos activos
+  /// Obtiene los productos activos
   Future<List<Map<String, dynamic>>> getProductosActivos() async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo productos activos');
+    try {
+      AppLogger.database('Obteniendo productos activos desde NestJS');
 
-      var query = SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
-            *,
-            categoria:categorias(*),
-            unidad_medida:unidades_medida(*),
-            proveedor_principal:proveedores(*)
-          ''');
+      final response = await http
+          .get(Uri.parse('$baseUrl/productos?activo=true'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
 
-      query = SupabaseDataSource.applyActiveFilter(query);
-
-      final response = await query;
-
-      AppLogger.database('✅ ${response.length} productos activos obtenidos');
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} productos activos obtenidos');
+        AppLogger.info('Productos activos data: $data');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener productos activos: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos activos', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene un producto por ID
   Future<Map<String, dynamic>> getProductoById(String id) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo producto: $id');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
-            *,
-            categoria:categorias(*),
-            unidad_medida:unidades_medida(*),
-            proveedor_principal:proveedores(*)
-          ''')
-          .eq('id', id)
-          .single();
+      final response = await http
+          .get(Uri.parse('$baseUrl/productos/$id'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Producto obtenido: ${response['nombre']}');
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Producto obtenido: ${data['nombre']}');
+        return data;
+      } else if (response.statusCode == 404) {
+        throw app_exceptions.ServerException(
+          message: 'Producto no encontrado: $id',
+          code: '404',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener producto: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) {
+        rethrow;
+      }
+      AppLogger.error('Error obteniendo producto', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Busca productos por término de búsqueda
@@ -99,55 +142,78 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     required String searchTerm,
     int? limit,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Buscando productos: $searchTerm');
 
-      var query = SupabaseDataSource.client
-          .from(_tableName)
-          .select('''
-            *,
-            categoria:categorias(*),
-            unidad_medida:unidades_medida(*)
-          ''')
-          .or('nombre.ilike.%$searchTerm%,codigo.ilike.%$searchTerm%,descripcion.ilike.%$searchTerm%');
-
-      query = SupabaseDataSource.applyActiveFilter(query);
-      
+      final queryParams = <String, String>{'search': searchTerm};
       if (limit != null) {
-        query = query.limit(limit) as PostgrestFilterBuilder<PostgrestList>;
+        queryParams['limit'] = limit.toString();
       }
 
-      final response = await query;
+      final uri = Uri.parse(
+        '$baseUrl/productos',
+      ).replace(queryParameters: queryParams);
 
-      AppLogger.database('✅ ${response.length} productos encontrados');
-      return List<Map<String, dynamic>>.from(response);
-    });
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} productos encontrados');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al buscar productos: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error buscando productos', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Crea un nuevo producto
-  Future<Map<String, dynamic>> createProducto(
-    Map<String, dynamic> data,
-  ) async {
-    return SupabaseDataSource.executeQuery(() async {
-      try {
+  Future<Map<String, dynamic>> createProducto(Map<String, dynamic> data) async {
+    try {
+      AppLogger.database('Creando producto: ${data['nombre']}');
 
-      AppLogger.database('Creando producto para remote: ${data['nombre']}');
+      AppLogger.info('Base url $baseUrl');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .insert(data)
-          .select()
-          .single();
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/productos'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Producto creado: ${response['id']}');
-      return response;
-      } catch (e) {
-        AppLogger.error('Error creating producto: $e');
+      print(
+        'Create producto response: ${response.statusCode} - ${response.body}',
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Producto creado: ${responseData['id']}');
+        return responseData;
+      } else {
+        final errorBody = response.body;
+        AppLogger.error('Error creating producto: $errorBody');
         throw app_exceptions.ServerException(
-          message: 'Failed to create producto: $e',
+          message:
+              'Error al crear producto: ${response.statusCode} - $errorBody',
         );
       }
-    });
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error creando producto', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Actualiza un producto existente
@@ -155,84 +221,213 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     required String id,
     required Map<String, dynamic> data,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Actualizando producto: $id');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/productos/$id'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Producto actualizado: ${response['nombre']}');
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Producto actualizado: ${responseData['nombre']}');
+        return responseData;
+      } else if (response.statusCode == 404) {
+        throw app_exceptions.ServerException(
+          message: 'Producto no encontrado: $id',
+          code: '404',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al actualizar producto: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) {
+        rethrow;
+      }
+      AppLogger.error('Error actualizando producto', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Elimina un producto (soft delete)
   Future<void> deleteProducto(String id) async {
-    await SupabaseDataSource.softDelete(_tableName, id);
-    AppLogger.database('✅ Producto eliminado: $id');
+    try {
+      AppLogger.database('Eliminando producto: $id');
+
+      final response = await http
+          .delete(Uri.parse('$baseUrl/productos/$id'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.database('✅ Producto eliminado: $id');
+      } else if (response.statusCode == 404) {
+        throw app_exceptions.ServerException(
+          message: 'Producto no encontrado: $id',
+          code: '404',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al eliminar producto: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) {
+        rethrow;
+      }
+      AppLogger.error('Error eliminando producto', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Elimina permanentemente un producto
   Future<void> hardDeleteProducto(String id) async {
-    await SupabaseDataSource.hardDelete(_tableName, id);
+    // En NestJS, el DELETE endpoint puede ser hard delete por defecto
+    // Si necesitas diferenciar, podrías usar un query param o endpoint diferente
+    await deleteProducto(id);
     AppLogger.database('✅ Producto eliminado permanentemente: $id');
   }
 
   /// Restaura un producto eliminado
   Future<void> restoreProducto(String id) async {
-    await SupabaseDataSource.restore(_tableName, id);
-    AppLogger.database('✅ Producto restaurado: $id');
+    try {
+      AppLogger.database('Restaurando producto: $id');
+
+      final response = await http
+          .patch(Uri.parse('$baseUrl/productos/$id/restore'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        AppLogger.database('✅ Producto restaurado: $id');
+      } else if (response.statusCode == 404) {
+        throw app_exceptions.ServerException(
+          message: 'Producto no encontrado: $id',
+          code: '404',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al restaurar producto: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) {
+        rethrow;
+      }
+      AppLogger.error('Error restaurando producto', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene productos por categoría
   Future<List<Map<String, dynamic>>> getProductosByCategoria(
     String categoriaId,
   ) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo productos por categoría: $categoriaId');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('*')
-          .eq('categoria_id', categoriaId)
-          .order('nombre');
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/productos?categoriaId=$categoriaId'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database(
+          '✅ ${data.length} productos obtenidos para categoría',
+        );
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message:
+              'Error al obtener productos por categoría: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos por categoría', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene productos por proveedor
   Future<List<Map<String, dynamic>>> getProductosByProveedor(
     String proveedorId,
   ) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo productos por proveedor: $proveedorId');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('*')
-          .eq('proveedor_principal_id', proveedorId)
-          .order('nombre');
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/productos?proveedorId=$proveedorId'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database(
+          '✅ ${data.length} productos obtenidos para proveedor',
+        );
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message:
+              'Error al obtener productos por proveedor: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos por proveedor', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene productos con stock bajo
   Future<List<Map<String, dynamic>>> getProductosStockBajo() async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo productos con stock bajo');
 
-      // Esta query necesita join con inventarios
-      final response = await SupabaseDataSource.client
-          .rpc('get_productos_stock_bajo');
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/productos?stockBajo=true'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} productos con stock bajo');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message:
+              'Error al obtener productos con stock bajo: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos con stock bajo', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Actualiza precios de productos de un proveedor
@@ -240,47 +435,88 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     required String proveedorId,
     required double porcentajeIncremento,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database(
         'Actualizando precios del proveedor $proveedorId en $porcentajeIncremento%',
       );
 
-      await SupabaseDataSource.client.rpc('update_precios_by_proveedor', params: {
-        'proveedor_id': proveedorId,
-        'porcentaje': porcentajeIncremento,
-      });
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/productos/actualizar-precios'),
+            headers: _headers,
+            body: jsonEncode({
+              'proveedorId': proveedorId,
+              'porcentaje': porcentajeIncremento,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Precios actualizados');
-    });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.database('✅ Precios actualizados');
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al actualizar precios: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error actualizando precios', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Marca un producto como sincronizado
   Future<void> markAsSynced(String id, DateTime syncTime) async {
-    return SupabaseDataSource.executeQuery(() async {
-      await SupabaseDataSource.client.from(_tableName).update({
-        'last_sync': syncTime.toIso8601String(),
-      }).eq('id', id);
+    try {
+      await http
+          .patch(
+            Uri.parse('$baseUrl/productos/$id'),
+            headers: _headers,
+            body: jsonEncode({'lastSync': syncTime.toIso8601String()}),
+          )
+          .timeout(const Duration(seconds: 30));
 
       AppLogger.sync('Producto marcado como sincronizado: $id');
-    });
+    } catch (e) {
+      AppLogger.error('Error marcando producto como sincronizado', e);
+    }
   }
 
   /// Obtiene productos modificados desde una fecha
   Future<List<Map<String, dynamic>>> getProductosModificados(
     DateTime since,
   ) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.sync('Obteniendo productos modificados desde: $since');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('*')
-          .gt('updated_at', since.toIso8601String())
-          .order('updated_at');
+      final response = await http
+          .get(
+            Uri.parse(
+              '$baseUrl/productos?modifiedSince=${since.toIso8601String()}',
+            ),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.sync('✅ ${response.length} productos modificados');
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.sync('✅ ${data.length} productos modificados');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message:
+              'Error al obtener productos modificados: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo productos modificados', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Sube una imagen para un producto
@@ -288,36 +524,94 @@ class ProductoRemoteDataSource extends SupabaseDataSource {
     required String productoId,
     required String filePath,
   }) async {
-    final path = 'productos/$productoId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    try {
+      AppLogger.database('Subiendo imagen para producto: $productoId');
 
-    return await SupabaseDataSource.uploadImage(
-      bucket: 'productos-images',
-      path: path,
-      file: filePath as dynamic,
-    );
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/productos/$productoId/imagen'),
+      );
+
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+      request.headers.addAll(_headers);
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final imageUrl = data['imageUrl'] as String? ?? data['url'] as String?;
+        AppLogger.database('✅ Imagen subida: $imageUrl');
+        return imageUrl ?? '';
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al subir imagen: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error subiendo imagen', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Elimina la imagen de un producto
   Future<void> deleteProductoImage(String imageUrl) async {
-    // Extraer el path de la URL
-    final uri = Uri.parse(imageUrl);
-    final path = uri.pathSegments.sublist(4).join('/');
+    try {
+      AppLogger.database('Eliminando imagen: $imageUrl');
 
-    await SupabaseDataSource.deleteImage(
-      bucket: 'productos-images',
-      path: path,
-    );
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl/productos/imagen'),
+            headers: _headers,
+            body: jsonEncode({'imageUrl': imageUrl}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.database('✅ Imagen eliminada');
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al eliminar imagen: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error eliminando imagen', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene estadísticas de productos
   Future<Map<String, dynamic>> getEstadisticas() async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo estadísticas de productos');
 
-      final response = await SupabaseDataSource.client
-          .rpc('get_productos_estadisticas');
+      final response = await http
+          .get(Uri.parse('$baseUrl/productos/estadisticas'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
 
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Estadísticas obtenidas');
+        return data;
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener estadísticas: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo estadísticas', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 }

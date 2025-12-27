@@ -78,3 +78,13 @@ class AuthPasswordUpdateRequested extends AuthEvent {
   @override
   List<Object?> get props => [currentPassword, newPassword];
 }
+
+/// Event to verify MFA code during login
+class AuthMfaCodeSubmitted extends AuthEvent {
+  final String code;
+
+  const AuthMfaCodeSubmitted({required this.code});
+
+  @override
+  List<Object?> get props => [code];
+}

@@ -42,6 +42,11 @@ class _ProductoFormPageState extends State<ProductoFormPage> {
   String? _categoriaId;
   String? _unidadMedidaId;
 
+  // Lists for dropdowns
+  List<CategoriaTable> _categorias = [];
+  List<UnidadMedidaTable> _unidades = [];
+  bool _isLoadingData = true;
+
   bool get _isEditing => widget.producto != null;
 
   @override
@@ -86,28 +91,32 @@ class _ProductoFormPageState extends State<ProductoFormPage> {
     _activo = producto?.activo ?? true;
   }
 
-  /// Load default category and unit IDs from database
+  /// Load categories and units from database
   Future<void> _loadDefaultIds() async {
     try {
       final db = getIt<AppDatabase>();
       
-      // Get first available category
+      // Get all categories
       final categorias = await db.select(db.categorias).get();
-      if (categorias.isNotEmpty) {
-        setState(() {
-          _categoriaId = widget.producto?.categoriaId ?? categorias.first.id;
-        });
-      }
-      
-      // Get first available unit
+      // Get all units
       final unidades = await db.select(db.unidadesMedida).get();
-      if (unidades.isNotEmpty) {
-        setState(() {
+      
+      setState(() {
+        _categorias = categorias;
+        _unidades = unidades;
+        _isLoadingData = false;
+        
+        // Set default or existing values
+        if (categorias.isNotEmpty) {
+          _categoriaId = widget.producto?.categoriaId ?? categorias.first.id;
+        }
+        if (unidades.isNotEmpty) {
           _unidadMedidaId = widget.producto?.unidadMedidaId ?? unidades.first.id;
-        });
-      }
+        }
+      });
     } catch (e) {
-      debugPrint('Error loading default IDs: $e');
+      debugPrint('Error loading data: $e');
+      setState(() => _isLoadingData = false);
     }
   }
 
@@ -283,6 +292,74 @@ class _ProductoFormPageState extends State<ProductoFormPage> {
                             enabled: !isLoading,
                             maxLines: 3,
                             textCapitalization: TextCapitalization.sentences,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Category and Unit Selection
+                  _buildSectionTitle('Clasificación'),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Category Dropdown
+                          DropdownButtonFormField<String>(
+                            value: _categoriaId,
+                            decoration: const InputDecoration(
+                              labelText: 'Categoría *',
+                              prefixIcon: Icon(Icons.category),
+                              border: OutlineInputBorder(),
+                            ),
+                            isExpanded: true,
+                            items: _categorias.map((categoria) {
+                              return DropdownMenuItem<String>(
+                                value: categoria.id,
+                                child: Text(categoria.nombre),
+                              );
+                            }).toList(),
+                            onChanged: isLoading || _isLoadingData
+                                ? null
+                                : (value) {
+                                    setState(() => _categoriaId = value);
+                                  },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Seleccione una categoría';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Unit Dropdown
+                          DropdownButtonFormField<String>(
+                            value: _unidadMedidaId,
+                            decoration: const InputDecoration(
+                              labelText: 'Unidad de Medida *',
+                              prefixIcon: Icon(Icons.straighten),
+                              border: OutlineInputBorder(),
+                            ),
+                            isExpanded: true,
+                            items: _unidades.map((unidad) {
+                              return DropdownMenuItem<String>(
+                                value: unidad.id,
+                                child: Text('${unidad.nombre} (${unidad.abreviatura})'),
+                              );
+                            }).toList(),
+                            onChanged: isLoading || _isLoadingData
+                                ? null
+                                : (value) {
+                                    setState(() => _unidadMedidaId = value);
+                                  },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Seleccione una unidad de medida';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),

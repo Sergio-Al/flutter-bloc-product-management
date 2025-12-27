@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/utils/password_validator.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
@@ -20,6 +21,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  int _passwordStrength = 0;
 
   @override
   void dispose() {
@@ -173,12 +175,17 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password Field
+                    // Password Field with strength indicator
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
                       enabled: !isLoading,
+                      onChanged: (value) {
+                        setState(() {
+                          _passwordStrength = PasswordValidator.calculateStrength(value);
+                        });
+                      },
                       decoration: InputDecoration(
                         labelText: 'Contraseña *',
                         hintText: '••••••••',
@@ -198,17 +205,23 @@ class _RegisterPageState extends State<RegisterPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        helperText: 'Mín. 8 caracteres, mayúscula, minúscula, número y símbolo',
+                        helperMaxLines: 2,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingrese una contraseña';
                         }
-                        if (value.length < 6) {
-                          return 'La contraseña debe tener al menos 6 caracteres';
-                        }
-                        return null;
+                        return PasswordValidator.validate(value);
                       },
                     ),
+                    
+                    // Password Strength Indicator
+                    if (_passwordController.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildPasswordStrengthIndicator(),
+                    ],
+                    
                     const SizedBox(height: 16),
 
                     // Confirm Password Field
@@ -316,6 +329,50 @@ class _RegisterPageState extends State<RegisterPage> {
           );
         },
       ),
+    );
+  }
+
+  /// Construye el indicador visual de fortaleza de contraseña
+  Widget _buildPasswordStrengthIndicator() {
+    final strengthLabel = PasswordValidator.getStrengthLabel(_passwordStrength);
+    final strengthColor = Color(PasswordValidator.getStrengthColor(_passwordStrength));
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Barra de progreso
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: _passwordStrength / 100,
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(strengthColor),
+            minHeight: 6,
+          ),
+        ),
+        const SizedBox(height: 4),
+        // Etiqueta de fortaleza
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Fortaleza: $strengthLabel',
+              style: TextStyle(
+                fontSize: 12,
+                color: strengthColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '$_passwordStrength%',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

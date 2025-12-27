@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../widgets/auth/mfa_verification_dialog.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -40,6 +41,10 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
+          if (state is AuthMfaRequired) {
+            _handleMfaRequired(context);
+          }
+
           if (state is AuthAuthenticated) {
             // Navigate to home page
             Navigator.of(context).pushReplacementNamed('/home');
@@ -228,5 +233,14 @@ class _LoginPageState extends State<LoginPage> {
         },
       ),
     );
+  }
+
+  /// Muestra el diálogo de verificación MFA
+  Future<void> _handleMfaRequired(BuildContext context) async {
+    final code = await showMfaVerificationDialog(context);
+    
+    if (code != null && mounted) {
+      context.read<AuthBloc>().add(AuthMfaCodeSubmitted(code: code));
+    }
   }
 }

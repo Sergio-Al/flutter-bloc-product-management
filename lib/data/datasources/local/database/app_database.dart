@@ -35,6 +35,9 @@ import 'daos/rol_dao.dart';
 // Importar remote datasources para sync inicial
 import '../../remote/categoria_remote_datasource.dart';
 import '../../remote/unidad_medida_remote_datasource.dart';
+import '../../remote/proveedor_remote_datasource.dart';
+import '../../remote/tienda_remote_datasource.dart';
+import '../../remote/almacen_remote_datasource.dart';
 
 // Importar logger
 import '../../../../core/utils/logger.dart';
@@ -180,7 +183,27 @@ class AppDatabase extends _$AppDatabase {
 
   // Seed de datos iniciales
   Future<void> _seedInitialData() async {
-    // Insertar roles por defecto
+    AppLogger.database('🌱 Starting initial data seed...');
+    
+    // Try to sync from NestJS first, fallback to local defaults on failure
+    try {
+      await _syncDefaultsFromRemote();
+      AppLogger.database('✅ Initial data synced from NestJS successfully');
+      
+      // Still need to insert roles locally (they're not in NestJS)
+      await _seedRoles();
+      return;
+    } catch (e) {
+      AppLogger.warning('⚠️ Could not fetch from NestJS, using local defaults: $e');
+    }
+    
+    // Fallback: Insert local default data
+    await _seedRoles();
+    await _seedLocalDefaults();
+  }
+
+  // Seed roles (always local, not in NestJS)
+  Future<void> _seedRoles() async {
     final rolesDefault = [
       RolesCompanion.insert(
         id: '00000000-0000-0000-0000-000000000001',
@@ -212,9 +235,11 @@ class AppDatabase extends _$AppDatabase {
     for (final rol in rolesDefault) {
       await into(roles).insert(rol, mode: InsertMode.insertOrIgnore);
     }
+  }
 
-    // Note: Users are automatically synced to local DB on login/register
-    // No need to seed users here
+  // Seed local fallback defaults (only used when NestJS is unavailable)
+  Future<void> _seedLocalDefaults() async {
+    AppLogger.database('📝 Inserting local fallback defaults...');
 
     // Insertar unidades de medida por defecto
     final unidadesDefault = [
@@ -472,26 +497,37 @@ ON CONFLICT (codigo) DO NOTHING;--*/
     }
   }
 
-  // Sync default data from Supabase
+  // Sync default data from NestJS backend
   Future<void> _syncDefaultsFromRemote() async {
     final categoriaRemote = CategoriaRemoteDataSource();
     final unidadRemote = UnidadMedidaRemoteDataSource();
+    final proveedorRemote = ProveedorRemoteDataSource();
+    final tiendaRemote = TiendaRemoteDataSource();
+    final almacenRemote = AlmacenRemoteDataSource();
 
-    // Fetch categorías from Supabase
+    // Fetch categorías from NestJS
     try {
       final remoteCategorias = await categoriaRemote.getCategoriasActivas();
       AppLogger.database(
-        '📥 Fetched ${remoteCategorias.length} categorías from Supabase',
+        '📥 Fetched ${remoteCategorias.length} categorías from NestJS',
       );
 
       // Use insertOrReplace to sync data without deleting (avoids FK constraint issues)
       for (final categoriaMap in remoteCategorias) {
+        // Handle categoria_padre as nested object or null
+        String? categoriaPadreId;
+        final categoriaPadre = categoriaMap['categoria_padre'];
+        if (categoriaPadre is Map<String, dynamic>) {
+          categoriaPadreId = categoriaPadre['id'] as String?;
+        }
+
         await into(categorias).insert(
           CategoriasCompanion.insert(
             id: categoriaMap['id'] as String,
             nombre: categoriaMap['nombre'] as String,
             codigo: categoriaMap['codigo'] as String,
             descripcion: Value(categoriaMap['descripcion'] as String?),
+            categoriaPadreId: Value(categoriaPadreId),
             requiereLote: Value(
               categoriaMap['requiere_lote'] as bool? ?? false,
             ),
@@ -522,31 +558,40 @@ ON CONFLICT (codigo) DO NOTHING;--*/
       }
 
       AppLogger.database(
-        '✅ ${remoteCategorias.length} categorías synced from remote',
+        '✅ ${remoteCategorias.length} categorías synced from NestJS',
       );
     } catch (e) {
-      AppLogger.error('Error fetching categorías from remote', e);
+      AppLogger.error('Error fetching categorías from NestJS', e);
       rethrow;
     }
 
-    // Fetch unidades from Supabase
+    // Fetch unidades from NestJS
     try {
       final remoteUnidades = await unidadRemote.getUnidadesActivas();
       AppLogger.database(
-        '📥 Fetched ${remoteUnidades.length} unidades from Supabase',
+        '📥 Fetched ${remoteUnidades.length} unidades from NestJS',
       );
 
       // Use insertOrReplace to sync data without deleting (avoids FK constraint issues)
       for (final unidadMap in remoteUnidades) {
+        // Parse factor_conversion - NestJS returns it as string "1.00"
+        double factorConversion = 1.0;
+        final factorValue = unidadMap['factor_conversion'];
+        if (factorValue != null) {
+          if (factorValue is num) {
+            factorConversion = factorValue.toDouble();
+          } else if (factorValue is String) {
+            factorConversion = double.tryParse(factorValue) ?? 1.0;
+          }
+        }
+
         await into(unidadesMedida).insert(
           UnidadesMedidaCompanion.insert(
             id: unidadMap['id'] as String,
             nombre: unidadMap['nombre'] as String,
             abreviatura: unidadMap['abreviatura'] as String,
             tipo: unidadMap['tipo'] as String,
-            factorConversion: Value(
-              unidadMap['factor_conversion'] as double? ?? 1.0,
-            ),
+            factorConversion: Value(factorConversion),
           ),
           mode: InsertMode.insertOrReplace,
         );
@@ -566,12 +611,180 @@ ON CONFLICT (codigo) DO NOTHING;--*/
       }
 
       AppLogger.database(
-        '✅ ${remoteUnidades.length} unidades synced from remote',
+        '✅ ${remoteUnidades.length} unidades synced from NestJS',
       );
     } catch (e) {
-      AppLogger.error('Error fetching unidades from remote', e);
+      AppLogger.error('Error fetching unidades from NestJS', e);
       rethrow;
     }
+
+    // Fetch proveedores from NestJS
+    try {
+      final remoteProveedores = await proveedorRemote.getProveedores(soloActivos: true);
+      AppLogger.database(
+        '📥 Fetched ${remoteProveedores.length} proveedores from NestJS',
+      );
+
+      for (final proveedorMap in remoteProveedores) {
+        final diasCreditoValue = proveedorMap['dias_credito'];
+        await into(proveedores).insert(
+          ProveedoresCompanion.insert(
+            id: proveedorMap['id'] as String,
+            razonSocial: proveedorMap['razon_social'] as String,
+            nit: proveedorMap['nit'] as String,
+            nombreContacto: Value(proveedorMap['nombre_contacto'] as String?),
+            telefono: Value(proveedorMap['telefono'] as String?),
+            email: Value(proveedorMap['email'] as String?),
+            direccion: Value(proveedorMap['direccion'] as String?),
+            ciudad: Value(proveedorMap['ciudad'] as String?),
+            tipoMaterial: Value(proveedorMap['tipo_material'] as String?),
+            diasCredito: diasCreditoValue != null ? Value(diasCreditoValue as int) : const Value.absent(),
+            activo: Value(proveedorMap['activo'] as bool? ?? true),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+
+      // Ensure default proveedor exists (fallback if not in remote)
+      if (remoteProveedores.isEmpty) {
+        await into(proveedores).insert(
+          ProveedoresCompanion.insert(
+            id: '00000000-0000-0000-0000-000000000001',
+            razonSocial: 'Proveedor Genérico',
+            nit: 'NIT-GEN-0001',
+            nombreContacto: const Value('Contacto Genérico'),
+            telefono: const Value('555-0000'),
+            email: const Value('contacto@generico.com'),
+            direccion: const Value('Calle Falsa 123'),
+            ciudad: const Value('Ciudad'),
+            tipoMaterial: const Value('Materiales Generales'),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+      }
+
+      AppLogger.database(
+        '✅ ${remoteProveedores.length} proveedores synced from NestJS',
+      );
+    } catch (e) {
+      AppLogger.error('Error fetching proveedores from NestJS', e);
+      // Don't rethrow - proveedores are not critical for initial setup
+    }
+
+    // Fetch tiendas from NestJS
+    try {
+      final remoteTiendas = await tiendaRemote.getTiendas();
+      AppLogger.database(
+        '📥 Fetched ${remoteTiendas.length} tiendas from NestJS',
+      );
+
+      for (final tiendaMap in remoteTiendas) {
+        await into(tiendas).insert(
+          TiendasCompanion.insert(
+            id: tiendaMap['id'] as String,
+            nombre: tiendaMap['nombre'] as String,
+            codigo: tiendaMap['codigo'] as String,
+            direccion: tiendaMap['direccion'] as String,
+            ciudad: tiendaMap['ciudad'] as String,
+            departamento: tiendaMap['departamento'] as String,
+            telefono: Value(tiendaMap['telefono'] as String?),
+            horarioAtencion: Value(tiendaMap['horario_atencion'] as String?),
+            activo: Value(tiendaMap['activo'] as bool? ?? true),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+
+      // Ensure default tienda exists (fallback if not in remote)
+      if (remoteTiendas.isEmpty) {
+        await into(tiendas).insert(
+          TiendasCompanion.insert(
+            id: '00000000-0000-0000-0000-000000000001',
+            nombre: 'Tienda Central',
+            codigo: 'TIENDA-CENTRAL',
+            direccion: 'Av. Principal #123',
+            ciudad: 'Ciudad',
+            departamento: 'Departamento',
+            telefono: const Value('555-1234'),
+            horarioAtencion: const Value('Lun-Vie 8:00-18:00; Sáb 9:00-14:00'),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+      }
+
+      AppLogger.database(
+        '✅ ${remoteTiendas.length} tiendas synced from NestJS',
+      );
+    } catch (e) {
+      AppLogger.error('Error fetching tiendas from NestJS', e);
+      // Don't rethrow - tiendas are not critical for initial setup
+    }
+
+    // Fetch almacenes from NestJS
+    try {
+      final remoteAlmacenes = await almacenRemote.getAlmacenes();
+      AppLogger.database(
+        '📥 Fetched ${remoteAlmacenes.length} almacenes from NestJS',
+      );
+
+      for (final almacenMap in remoteAlmacenes) {
+        // Handle tienda as nested object
+        String? tiendaId;
+        final tienda = almacenMap['tienda'];
+        if (tienda is Map<String, dynamic>) {
+          tiendaId = tienda['id'] as String?;
+        } else {
+          tiendaId = almacenMap['tienda_id'] as String?;
+        }
+
+        await into(almacenes).insert(
+          AlmacenesCompanion.insert(
+            id: almacenMap['id'] as String,
+            nombre: almacenMap['nombre'] as String,
+            codigo: almacenMap['codigo'] as String,
+            tiendaId: tiendaId ?? '00000000-0000-0000-0000-000000000001',
+            ubicacion: almacenMap['ubicacion'] as String? ?? '',
+            tipo: almacenMap['tipo'] as String? ?? 'Principal',
+            capacidadM3: Value(_parseDouble(almacenMap['capacidad_m3'])),
+            areaM2: Value(_parseDouble(almacenMap['area_m2'])),
+            activo: Value(almacenMap['activo'] as bool? ?? true),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+
+      // Ensure default almacen exists (fallback if not in remote)
+      if (remoteAlmacenes.isEmpty) {
+        await into(almacenes).insert(
+          AlmacenesCompanion.insert(
+            id: '00000000-0000-0000-0000-000000000001',
+            nombre: 'Almacén Principal',
+            codigo: 'ALM-PRINCIPAL',
+            tiendaId: '00000000-0000-0000-0000-000000000001',
+            ubicacion: 'Ubicación Central',
+            tipo: 'Principal',
+            capacidadM3: const Value(1000.0),
+            areaM2: const Value(500.0),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+      }
+
+      AppLogger.database(
+        '✅ ${remoteAlmacenes.length} almacenes synced from NestJS',
+      );
+    } catch (e) {
+      AppLogger.error('Error fetching almacenes from NestJS', e);
+      // Don't rethrow - almacenes are not critical for initial setup
+    }
+  }
+
+  // Helper to parse double from various formats
+  double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }
 

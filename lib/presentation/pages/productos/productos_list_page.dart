@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/producto/producto_bloc.dart';
 import '../../blocs/producto/producto_event.dart';
 import '../../blocs/producto/producto_state.dart';
@@ -317,6 +320,18 @@ class _ProductosListViewState extends State<_ProductosListView> {
   }
 
   Widget _buildFAB(BuildContext context) {
+    // Get current user's role from AuthBloc
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    // Only show FAB if user can create productos (Gerente only)
+    if (!PermissionHelper.canCreateProducto(userRole)) {
+      return const SizedBox.shrink();
+    }
+
     return FloatingActionButton.extended(
       onPressed: () => _navigateToCreate(context),
       icon: const Icon(Icons.add),

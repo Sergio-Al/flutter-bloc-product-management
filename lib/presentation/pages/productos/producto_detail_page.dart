@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../core/permissions/permission_helper.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/producto/producto_bloc.dart';
 import '../../blocs/producto/producto_event.dart';
 import '../../blocs/producto/producto_state.dart';
@@ -53,18 +56,7 @@ class _ProductoDetailViewState extends State<_ProductoDetailView> {
               Navigator.of(context).pop(_wasModified);
             },
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _navigateToEdit(context),
-              tooltip: 'Editar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _showDeleteDialog(context),
-              tooltip: 'Eliminar',
-            ),
-          ],
+          actions: _buildAppBarActions(context),
         ),
         body: BlocConsumer<ProductoBloc, ProductoState>(
           listener: (context, state) {
@@ -430,6 +422,41 @@ class _ProductoDetailViewState extends State<_ProductoDetailView> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Build AppBar actions based on user permissions
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    String? userRole;
+    if (authState is AuthAuthenticated) {
+      userRole = authState.user.rolNombre;
+    }
+
+    final actions = <Widget>[];
+
+    // Edit button - Only Gerente can edit productos
+    if (PermissionHelper.canEditProducto(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _navigateToEdit(context),
+          tooltip: 'Editar',
+        ),
+      );
+    }
+
+    // Delete button - No one can delete (restricted for all roles)
+    if (PermissionHelper.canDeleteProducto(userRole)) {
+      actions.add(
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () => _showDeleteDialog(context),
+          tooltip: 'Eliminar',
+        ),
+      );
+    }
+
+    return actions;
   }
 
   void _navigateToEdit(BuildContext context) async {

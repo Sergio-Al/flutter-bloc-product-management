@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../models/menu_item.dart';
 
 class MenuConfig {
+  /// Valid backend roles: Administrador, Gerente, Almacenero, Vendedor
+  /// Permissions based on PERMISOS.md from NestJS backend
   static const List<MenuItem> menuItems = [
-    // ✅ Productos - Todos los roles
+    // ✅ Productos - Todos los roles (todos tienen al menos lectura)
+    // Admin: 📖, Gerente: ✅ CRU, Almacenero: 📖, Vendedor: 📖
     MenuItem(
       icon: Icons.inventory_2,
       title: 'Productos',
@@ -11,15 +14,17 @@ class MenuConfig {
       route: '/productos',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // ✅ Almacenes - Admin, Gerente, Almacenero
+    // ✅ Almacenes - Todos los roles (todos tienen al menos lectura)
+    // Admin: 📖, Gerente: ✅, Almacenero: ✏️, Vendedor: 📖
     MenuItem(
       icon: Icons.warehouse,
       title: 'Almacenes',
       subtitle: 'Gestionar almacenes',
       route: '/almacenes',
-      allowedRoles: ['Administrador', 'Gerente', 'Almacenero'],
+      allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // ✅ Tiendas - Todos los roles
+    // ✅ Tiendas - Todos los roles (todos tienen al menos lectura)
+    // Admin: ✅, Gerente: ✏️, Almacenero: 📖, Vendedor: 📖
     MenuItem(
       icon: Icons.store,
       title: 'Tiendas',
@@ -27,7 +32,8 @@ class MenuConfig {
       route: '/tiendas',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // ✅ Proveedores - Admin, Gerente, Almacenero
+    // ✅ Proveedores - Sin acceso para Vendedor
+    // Admin: 📖, Gerente: ✅, Almacenero: 📖, Vendedor: ❌
     MenuItem(
       icon: Icons.contact_page,
       title: 'Proveedores',
@@ -35,7 +41,8 @@ class MenuConfig {
       route: '/proveedores',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero'],
     ),
-    // ✅ Lotes - Todos los roles
+    // ✅ Lotes - Todos los roles (todos tienen al menos lectura)
+    // Admin: 📖, Gerente: ✅, Almacenero: ✏️, Vendedor: 📖
     MenuItem(
       icon: Icons.all_inbox,
       title: 'Lotes',
@@ -43,7 +50,8 @@ class MenuConfig {
       route: '/lotes',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // ✅ Inventarios - Todos los roles
+    // ✅ Inventarios - Todos los roles (todos tienen al menos lectura)
+    // Admin: 📖, Gerente: ✅, Almacenero: ✏️, Vendedor: 📖
     MenuItem(
       icon: Icons.inventory,
       title: 'Inventarios',
@@ -51,7 +59,8 @@ class MenuConfig {
       route: '/inventarios',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // ✅ Movimientos - Todos los roles
+    // ✅ Movimientos - Todos los roles (todos tienen al menos lectura)
+    // Admin: 📖, Gerente: ✅, Almacenero: ✏️, Vendedor: 📝 (solo ventas)
     MenuItem(
       icon: Icons.swap_horiz,
       title: 'Movimientos',
@@ -59,7 +68,8 @@ class MenuConfig {
       route: '/movimientos',
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // 🔒 Reportes - Próximamente
+    // 🔒 Reportes - Todos los roles con diferentes niveles
+    // Admin: 📖, Gerente: ✅, Almacenero: parcial, Vendedor: 📖 limitado
     MenuItem(
       icon: Icons.assessment,
       title: 'Reportes',
@@ -68,7 +78,8 @@ class MenuConfig {
       isImplemented: false,
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
-    // 🔒 Usuarios - Admin y Gerente
+    // 🔒 Usuarios - Solo Admin (Gerente solo lectura)
+    // Admin: ✅, Gerente: 📖, Almacenero: ❌, Vendedor: ❌
     MenuItem(
       icon: Icons.people,
       title: 'Usuarios',
@@ -77,7 +88,7 @@ class MenuConfig {
       isImplemented: false,
       allowedRoles: ['Administrador', 'Gerente'],
     ),
-    // 🔒 Análisis - Admin y Gerente
+    // 🔒 Análisis/Dashboard - Admin y Gerente
     MenuItem(
       icon: Icons.trending_up,
       title: 'Análisis',
@@ -96,6 +107,7 @@ class MenuConfig {
       allowedRoles: ['Administrador', 'Gerente', 'Almacenero', 'Vendedor'],
     ),
     // 🔒 Configuración - Solo Administrador
+    // Admin: ✏️, Gerente: ❌, Almacenero: ❌, Vendedor: ❌
     MenuItem(
       icon: Icons.settings,
       title: 'Configuración',

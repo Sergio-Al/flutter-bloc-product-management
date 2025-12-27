@@ -1,6 +1,6 @@
 # Flutter Management System
 
-Sistema de gestión de productos para materiales de construcción con sincronización offline-first y backend en Supabase.
+Sistema de gestión de productos para materiales de construcción con sincronización offline-first y backend en NestJS.
 
 ## 📋 Tabla de Contenidos
 
@@ -8,7 +8,7 @@ Sistema de gestión de productos para materiales de construcción con sincroniza
 - [Características](#características)
 - [Requisitos Previos](#requisitos-previos)
 - [Instalación](#instalación)
-- [Configuración de Supabase](#configuración-de-supabase)
+- [Configuración del Backend](#configuración-del-backend)
 - [Variables de Entorno](#variables-de-entorno)
 - [Comandos Útiles](#comandos-útiles)
 - [Estructura del Proyecto](#estructura-del-proyecto)
@@ -18,16 +18,16 @@ Sistema de gestión de productos para materiales de construcción con sincroniza
 
 ## 📝 Descripción
 
-Sistema de gestión empresarial para control de inventarios, productos, proveedores y movimientos de almacén. Utiliza arquitectura Clean Architecture con patrón BLoC y capacidades offline-first mediante SQLite local sincronizado con Supabase.
+Sistema de gestión empresarial para control de inventarios, productos, proveedores y movimientos de almacén. Utiliza arquitectura Clean Architecture con patrón BLoC y capacidades offline-first mediante SQLite local sincronizado con backend NestJS.
 
 ## ✨ Características
 
-- 🔄 Sincronización offline-first con Supabase
+- 🔄 Sincronización offline-first con NestJS REST API
 - 📦 Gestión de productos, inventarios y almacenes
 - 👥 Control de usuarios con roles y permisos
 - 🏪 Múltiples tiendas y proveedores
 - 📊 Seguimiento de movimientos de inventario
-- 🔐 Autenticación segura con RLS (Row Level Security)
+- 🔐 Autenticación JWT con MFA (Multi-Factor Authentication)
 - 🎨 Tema personalizado y UI moderna
 - 📱 Multiplataforma (iOS, Android)
 
@@ -482,18 +482,27 @@ Esto te permitirá registrar usuarios sin esperar emails de confirmación.
 ### Archivo `.env.example`
 
 ```bash
-# Supabase Configuration
+# NestJS Backend Configuration
+API_BASE_URL=http://localhost:3000
+
+# Supabase Configuration (legacy - for data sync)
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_ANON_KEY=tu-anon-key-muy-larga-aqui
 
 # Debug Mode
 DEBUG_MODE=true
+
+# Environment
+ENVIRONMENT=development
 ```
 
 ### Configuración
 
 1. Copia `.env.example` como `.env`
-2. Completa con tus credenciales de Supabase
+2. Configura `API_BASE_URL` según tu entorno:
+   - **iOS Simulator**: `http://localhost:3000`
+   - **Android Emulator**: `http://10.0.2.2:3000`
+   - **Dispositivo físico**: `http://TU_IP_LOCAL:3000`
 3. **NUNCA** subas el archivo `.env` a Git
 
 ### Agregar a `.gitignore`
@@ -509,11 +518,7 @@ DEBUG_MODE=true
 
 ```bash
 # Desarrollo (usando valores del .env)
-flutter run --dart-define-from-file=.env
-
-# Producción
-flutter build apk --dart-define=SUPABASE_URL=tu-url --dart-define=SUPABASE_ANON_KEY=tu-key
-```
+flutter run
 
 ## 🛠️ Comandos Útiles
 

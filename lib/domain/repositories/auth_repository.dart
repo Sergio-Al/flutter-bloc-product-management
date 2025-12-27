@@ -7,9 +7,13 @@ import '../entities/usuario.dart';
 abstract class AuthRepository {
   /// Login with email and password
   /// Returns authenticated user or failure
-  Future<Either<Failure, Usuario>> login({
+  Future<Either<Failure, Map<String, dynamic>>> login({
     required String email,
     required String password,
+  });
+
+  Future<Either<Failure, Map<String, dynamic>>> verifyMfaLogin({
+    required String token,
   });
 
   /// Register a new user

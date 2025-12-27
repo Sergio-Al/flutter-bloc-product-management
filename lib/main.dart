@@ -13,6 +13,7 @@ import 'package:flutter_management_system/presentation/pages/inventarios/inventa
 import 'package:flutter_management_system/presentation/pages/lotes/lotes_list_page.dart';
 import 'package:flutter_management_system/presentation/pages/movimientos/movimientos_list_page.dart';
 import 'package:flutter_management_system/presentation/pages/proveedores/proveedores_list_page.dart';
+import 'package:flutter_management_system/presentation/pages/settings/mfa_settings_page.dart';
 import 'package:flutter_management_system/presentation/pages/tiendas/tiendas_list_page.dart';
 
 import 'core/config/env_config.dart';
@@ -97,6 +98,7 @@ class MyApp extends StatelessWidget {
             create: (context) => getIt<MovimientoBloc>(),
             child: const MovimientosListPage(),
           ),
+          '/settings-mfa': (context) => const MfaSettingsPage(),
         },
       ),
     );

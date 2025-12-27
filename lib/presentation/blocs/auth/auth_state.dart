@@ -68,3 +68,13 @@ class AuthPasswordUpdated extends AuthState {
 class AuthTokenRefreshed extends AuthState {
   const AuthTokenRefreshed();
 }
+
+/// State when MFA verification is required during login
+class AuthMfaRequired extends AuthState {
+  final String tempToken;
+
+  const AuthMfaRequired({required this.tempToken});
+
+  @override
+  List<Object?> get props => [tempToken];
+}

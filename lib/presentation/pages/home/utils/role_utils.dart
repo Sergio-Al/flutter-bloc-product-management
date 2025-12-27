@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class RoleUtils {
-  /// Mapea un UUID de rol a su nombre
+  /// Obtiene el nombre del rol del usuario
+  /// Ahora usa directamente rolNombre del usuario en lugar de mapear UUIDs
+  static String? getRoleNameFromUser(String? rolNombre) {
+    return rolNombre;
+  }
+
+  /// Mapea un UUID de rol a su nombre (legacy - usar getRoleNameFromUser)
+  @Deprecated('Use getRoleNameFromUser instead - the API now returns the role name directly')
   static String? getRoleNameFromId(String? rolId) {
     if (rolId == null) return null;
 

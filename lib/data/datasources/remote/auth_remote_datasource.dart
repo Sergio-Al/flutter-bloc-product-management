@@ -1,373 +1,575 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_datasource.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../core/errors/exceptions.dart' as app_exceptions;
 import '../../../core/utils/logger.dart';
+import '../../../core/config/env_config.dart';
 
-/// Datasource remoto para operaciones de autenticación con Supabase
-class AuthRemoteDataSource extends SupabaseDataSource {
+/// Datasource remoto para operaciones de autenticación con NestJS backend
+class AuthRemoteDataSource {
+  static String? _accessToken;
+  static String? _refreshToken;
+  static String? _tempToken;
+  
+  /// Base URL del API (configurable desde .env)
+  static String get baseUrl => EnvConfig.apiUrl;
+  
+  /// Obtiene el refresh token actual
+  String? getRefreshToken() => _refreshToken;
+  
+  /// Establece el refresh token
+  void setRefreshToken(String? token) => _refreshToken = token;
+  
+  /// Headers comunes para todas las peticiones
+  static Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+  };
+
   /// Inicia sesión con email y contraseña
   ///
-  /// Returns: User autenticado y session
-  /// Throws: AuthException si las credenciales son inválidas
-  Future<AuthResponse> login({
+  /// Returns: Map con access_token, user, y opcionalmente requires_mfa
+  /// Throws: AuthenticationException si las credenciales son inválidas
+  Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.auth('Iniciando sesión: $email');
 
-      final response = await SupabaseDataSource.client.auth.signInWithPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      if (response.user == null) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Si requiere MFA, guardar token temporal
+        if (data['requires_mfa'] == true) {
+          _tempToken = data['temp_token'] as String?;
+          AppLogger.auth('⚠️ MFA requerido para: $email');
+        } else {
+          // Login exitoso sin MFA - guardar ambos tokens
+          _accessToken = data['access_token'] as String?;
+          _refreshToken = data['refresh_token'] as String?;
+          AppLogger.auth('✅ Sesión iniciada: $email');
+        }
+        
+        return data;
+      } else if (response.statusCode == 401) {
+        // Verificar si la cuenta está bloqueada
+        final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
+        final message = errorBody['message'] as String? ?? 'Usuario o contraseña incorrectos';
+        
+        // El backend puede enviar información sobre bloqueo de cuenta
+        if (message.contains('bloqueada') || message.contains('locked')) {
+          throw app_exceptions.AuthenticationException(
+            message: message,
+          );
+        }
+        
         throw app_exceptions.AuthenticationException(
-          message: 'Usuario o contraseña incorrectos',
+          message: message,
+        );
+      } else if (response.statusCode == 429) {
+        // Rate limiting - demasiados intentos
+        throw app_exceptions.AuthenticationException(
+          message: 'Demasiados intentos. Por favor espere un momento antes de intentar nuevamente.',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al iniciar sesión: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en login', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Verifica código MFA durante el login
+  ///
+  /// Returns: Map con access_token y user
+  /// Throws: AuthenticationException si el código es inválido
+  Future<Map<String, dynamic>> verifyMfaLogin({
+    required String token,
+  }) async {
+    try {
+      if (_tempToken == null) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay sesión MFA pendiente',
         );
       }
 
-      AppLogger.auth('✅ Sesión iniciada: ${response.user!.email}');
-      return response;
-    });
+      AppLogger.auth('Verificando código MFA');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/mfa/verify'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'temp_token': _tempToken,
+          'token': token,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _accessToken = data['access_token'] as String?;
+        _tempToken = null; // Limpiar token temporal
+        AppLogger.auth('✅ MFA verificado correctamente');
+        return data;
+      } else if (response.statusCode == 401) {
+        throw app_exceptions.AuthenticationException(
+          message: 'Código MFA inválido o expirado',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al verificar MFA: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en verifyMfaLogin', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Registra un nuevo usuario
   ///
-  /// Returns: User creado y session
-  /// Throws: AuthException si el email ya existe
-  Future<AuthResponse> register({
+  /// Returns: Map con user y access_token
+  /// Throws: AuthenticationException si el email ya existe
+  Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String nombreCompleto,
+    required String telefono,
+    required String tiendaId,
+    required String rolId,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.auth('Registrando usuario: $email');
 
-      final response = await SupabaseDataSource.client.auth.signUp(
-        email: email,
-        password: password,
-        data: {
+      print('json to send: ' + jsonEncode({
+          'email': email,
+          'password': password,
           'nombre_completo': nombreCompleto,
-        },
+          'telefono': telefono,
+          'tiendaId': tiendaId,
+          'rolId': rolId,
+        }));
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'nombre_completo': nombreCompleto,
+          'telefono': telefono,
+          'tiendaId': tiendaId,
+          'rolId': rolId,
+        }),
       );
 
-      if (response.user == null) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _accessToken = data['access_token'] as String?;
+        _refreshToken = data['refresh_token'] as String?;
+        AppLogger.auth('✅ Usuario registrado: $email');
+        return data;
+      } else if (response.statusCode == 409) {
         throw app_exceptions.AuthenticationException(
-          message: 'Error al registrar usuario',
+          message: 'El email ya está registrado',
+        );
+      } else if (response.statusCode == 400) {
+        // Validación fallida (contraseña débil, etc.)
+        final errorBody = jsonDecode(response.body);
+        final message = errorBody['message'];
+        // Si es una lista de errores, unirlos
+        if (message is List) {
+          throw app_exceptions.ValidationException(
+            message: message.join('. '),
+          );
+        }
+        throw app_exceptions.ValidationException(
+          message: message?.toString() ?? 'Error de validación',
+        );
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw app_exceptions.ServerException(
+          message: errorBody['message'] ?? 'Error al registrar usuario',
         );
       }
-
-      AppLogger.auth('✅ Usuario registrado: ${response.user!.email}');
-      return response;
-    });
+    } catch (e) {
+      AppLogger.error('Error en register', e);
+      if (e is app_exceptions.AuthenticationException || 
+          e is app_exceptions.ValidationException ||
+          e is app_exceptions.ServerException) rethrow;
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
-  /// Cierra la sesión actual
+  /// Cierra la sesión actual (notifica al backend)
   Future<void> logout() async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.auth('Cerrando sesión');
-
-      await SupabaseDataSource.client.auth.signOut();
-
+      
+      // Notificar al backend para invalidar refresh token
+      if (_accessToken != null) {
+        try {
+          await http.post(
+            Uri.parse('$baseUrl/auth/logout'),
+            headers: _headers,
+          );
+        } catch (_) {
+          // Ignorar errores de red en logout
+        }
+      }
+      
+      _accessToken = null;
+      _refreshToken = null;
+      _tempToken = null;
       AppLogger.auth('✅ Sesión cerrada');
-    });
-  }
-
-  /// Refresca el token de autenticación
-  ///
-  /// Returns: Nueva session con token actualizado
-  /// Throws: AuthException si el refresh token es inválido
-  Future<AuthResponse> refreshToken() async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.auth('Refrescando token');
-
-      final response = await SupabaseDataSource.client.auth.refreshSession();
-
-      if (response.session == null) {
-        throw app_exceptions.AuthenticationException(
-          message: 'No se pudo refrescar el token',
-        );
-      }
-
-      AppLogger.auth('✅ Token refrescado');
-      return response;
-    });
-  }
-
-  /// Envía un email para restablecer contraseña
-  ///
-  /// [email] - Email del usuario
-  Future<void> resetPassword(String email) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.auth('Solicitando restablecimiento de contraseña: $email');
-
-      await SupabaseDataSource.client.auth.resetPasswordForEmail(email);
-
-      AppLogger.auth('✅ Email de restablecimiento enviado');
-    });
-  }
-
-  /// Actualiza la contraseña del usuario actual
-  ///
-  /// [newPassword] - Nueva contraseña
-  Future<User> updatePassword(String newPassword) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.auth('Actualizando contraseña');
-
-      final response = await SupabaseDataSource.client.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
-
-      if (response.user == null) {
-        throw app_exceptions.AuthenticationException(
-          message: 'Error al actualizar contraseña',
-        );
-      }
-
-      AppLogger.auth('✅ Contraseña actualizada');
-      return response.user!;
-    });
-  }
-
-  /// Obtiene el usuario actual
-  ///
-  /// Returns: Usuario autenticado o null si no hay sesión
-  User? getCurrentUser() {
-    final user = SupabaseDataSource.currentUser;
-    if (user != null) {
-      AppLogger.auth('Usuario actual: ${user.email}');
+    } catch (e) {
+      AppLogger.error('Error en logout', e);
     }
-    return user;
-  }
-
-  /// Obtiene la sesión actual
-  ///
-  /// Returns: Session activa o null
-  Session? getCurrentSession() {
-    final session = SupabaseDataSource.currentSession;
-    if (session != null) {
-      AppLogger.auth('Sesión activa hasta: ${session.expiresAt}');
-    }
-    return session;
   }
 
   /// Verifica si hay un usuario autenticado
   bool isAuthenticated() {
-    return SupabaseDataSource.isAuthenticated;
+    print('app access token: ' + (_accessToken ?? 'null'));
+    return _accessToken != null && _accessToken!.isNotEmpty;
   }
 
-  /// Obtiene el perfil completo del usuario desde la tabla usuarios
+  /// Obtiene el token de acceso actual
+  String? getAccessToken() {
+    return _accessToken;
+  }
+
+  /// Establece el token de acceso (útil para restaurar sesión)
+  void setAccessToken(String? token) {
+    _accessToken = token;
+  }
+
+  /// Obtiene el perfil completo del usuario
   ///
-  /// [userId] - ID del usuario (opcional, usa el usuario actual si no se proporciona)
   /// Returns: Map con los datos del usuario
-  Future<Map<String, dynamic>> getUserProfile([String? userId]) async {
-    return SupabaseDataSource.executeQuery(() async {
-      final uid = userId ?? SupabaseDataSource.currentUserId;
-
-      if (uid == null) {
-        throw app_exceptions.AuthenticationException(
-          message: 'No hay usuario autenticado',
-        );
-      }
-
-      AppLogger.auth('Obteniendo perfil de usuario: $uid');
-
-      try {
-        // Primero intentar con joins
-        final response = await SupabaseDataSource.client
-            .from('usuarios')
-            .select('''
-              *,
-              rol:roles(*),
-              tienda:tiendas(*)
-            ''')
-            .eq('auth_user_id', uid)
-            .single();
-
-        AppLogger.auth('✅ Perfil obtenido: ${response['email']}');
-        return response;
-      } catch (e) {
-        AppLogger.auth('⚠️ Error con joins, intentando sin ellos: $e');
-        
-        // Si falla, intentar sin los joins (solo datos básicos)
-        final response = await SupabaseDataSource.client
-            .from('usuarios')
-            .select('*')
-            .eq('auth_user_id', uid)
-            .single();
-
-        AppLogger.auth('✅ Perfil obtenido (sin joins): ${response['email']}');
-        return response;
-      }
-    });
-  }
-
-  /// Actualiza el perfil del usuario en la tabla usuarios
-  ///
-  /// [data] - Datos a actualizar
-  Future<Map<String, dynamic>> updateUserProfile(
-    Map<String, dynamic> data,
-  ) async {
-    return SupabaseDataSource.executeQuery(() async {
-      final uid = SupabaseDataSource.currentUserId;
-
-      if (uid == null) {
-        throw app_exceptions.AuthenticationException(
-          message: 'No hay usuario autenticado',
-        );
-      }
-
-      AppLogger.auth('Actualizando perfil de usuario: $uid');
-
-      final response = await SupabaseDataSource.client
-          .from('usuarios')
-          .update(data)
-          .eq('auth_user_id', uid)
-          .select()
-          .single();
-
-      AppLogger.auth('✅ Perfil actualizado');
-      return response;
-    });
-  }
-
-  /// Verifica si el usuario tiene un rol específico
-  ///
-  /// [roleName] - Nombre del rol a verificar
-  /// Returns: true si el usuario tiene el rol
-  Future<bool> hasRole(String roleName) async {
+  Future<Map<String, dynamic>> getUserProfile() async {
     try {
-      final profile = await getUserProfile();
-      final rol = profile['rol'] as Map<String, dynamic>?;
+      if (!isAuthenticated()) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
+        );
+      }
 
-      if (rol == null) return false;
+      // AppLogger.auth('Obteniendo perfil de usuario');
 
-      return rol['nombre'] == roleName;
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/profile'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.auth('✅ Perfil obtenido: ${data}');
+        return data;
+      } else if (response.statusCode == 401) {
+        _accessToken = null;
+        throw app_exceptions.AuthenticationException(
+          message: 'Sesión expirada',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener perfil: ${response.statusCode}',
+        );
+      }
     } catch (e) {
-      AppLogger.error('Error al verificar rol', e);
-      return false;
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en getUserProfile', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
     }
   }
 
-  /// Verifica si el usuario tiene un permiso específico
-  ///
-  /// [permission] - Nombre del permiso a verificar
-  /// Returns: true si el usuario tiene el permiso
-  Future<bool> hasPermission(String permission) async {
+  /// Obtiene roles disponibles
+  Future<List<Map<String, dynamic>>> getRoles() async {
     try {
-      final profile = await getUserProfile();
-      final rol = profile['rol'] as Map<String, dynamic>?;
+      AppLogger.auth('Obteniendo roles disponibles');
 
-      if (rol == null) return false;
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/roles'),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-      final permisos = rol['permisos'] as Map<String, dynamic>?;
-      if (permisos == null) return false;
-
-      return permisos[permission] == true;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        AppLogger.auth('✅ Roles obtenidos: ${data.length}');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener roles: ${response.statusCode}',
+        );
+      }
     } catch (e) {
-      AppLogger.error('Error al verificar permiso', e);
-      return false;
+      AppLogger.error('Error en getRoles', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
     }
   }
 
-  /// Escucha cambios en el estado de autenticación
-  ///
-  /// [callback] - Función a ejecutar cuando cambia el estado
-  /// Returns: Subscription que puede ser cancelada
-  Stream<AuthState> onAuthStateChange() {
-    AppLogger.auth('Escuchando cambios de autenticación');
+  /// Obtiene tiendas disponibles
+  Future<List<Map<String, dynamic>>> getTiendas() async {
+    try {
+      AppLogger.auth('Obteniendo tiendas disponibles');
 
-    return SupabaseDataSource.client.auth.onAuthStateChange.map((event) {
-      AppLogger.auth('Estado de autenticación cambió: ${event.event}');
-      return event;
-    });
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/tiendas'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        AppLogger.auth('✅ Tiendas obtenidas: ${data.length}');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener tiendas: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error en getTiendas', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
-  /// Cambia la contraseña del usuario actual
-  ///
-  /// [currentPassword] - Contraseña actual (para verificación)
-  /// [newPassword] - Nueva contraseña
-  Future<void> changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    return SupabaseDataSource.executeQuery(() async {
-      final email = SupabaseDataSource.currentUserEmail;
+  // ============================================
+  // MFA (Multi-Factor Authentication) Methods
+  // ============================================
 
-      if (email == null) {
+  /// Habilita MFA para el usuario actual
+  ///
+  /// Returns: Map con secret y qrCode (imagen base64)
+  Future<Map<String, dynamic>> enableMfa() async {
+    try {
+      if (!isAuthenticated()) {
         throw app_exceptions.AuthenticationException(
           message: 'No hay usuario autenticado',
         );
       }
 
-      AppLogger.auth('Cambiando contraseña');
+      AppLogger.auth('Habilitando MFA');
 
-      // Primero verificar que la contraseña actual es correcta
-      try {
-        await SupabaseDataSource.client.auth.signInWithPassword(
-          email: email,
-          password: currentPassword,
-        );
-      } catch (e) {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/mfa/enable'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.auth('✅ MFA habilitado - QR generado');
+        return data;
+      } else if (response.statusCode == 401) {
+        _accessToken = null;
         throw app_exceptions.AuthenticationException(
-          message: 'Contraseña actual incorrecta',
+          message: 'Sesión expirada',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al habilitar MFA: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en enableMfa', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Verifica el código MFA para confirmar la habilitación
+  ///
+  /// [token] - Código de 6 dígitos del autenticador
+  Future<void> verifyMfaSetup({required String token}) async {
+    try {
+      if (!isAuthenticated()) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
         );
       }
 
-      // Actualizar con la nueva contraseña
-      await updatePassword(newPassword);
+      AppLogger.auth('Verificando setup MFA');
 
-      AppLogger.auth('✅ Contraseña cambiada');
-    });
-  }
-
-  /// Reenvía el email de confirmación
-  ///
-  /// [email] - Email del usuario
-  Future<void> resendConfirmationEmail(String email) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.auth('Reenviando email de confirmación: $email');
-
-      await SupabaseDataSource.client.auth.resend(
-        type: OtpType.signup,
-        email: email,
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/mfa/enable/verify'),
+        headers: _headers,
+        body: jsonEncode({'token': token}),
       );
 
-      AppLogger.auth('✅ Email de confirmación reenviado');
-    });
-  }
-
-  /// Verifica si el email del usuario está confirmado
-  ///
-  /// Returns: true si el email está confirmado
-  bool isEmailConfirmed() {
-    final user = SupabaseDataSource.currentUser;
-    if (user == null) return false;
-
-    final emailConfirmedAt = user.emailConfirmedAt;
-    return emailConfirmedAt != null;
-  }
-
-  /// Actualiza el email del usuario
-  ///
-  /// [newEmail] - Nuevo email
-  Future<User> updateEmail(String newEmail) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.auth('Actualizando email a: $newEmail');
-
-      final response = await SupabaseDataSource.client.auth.updateUser(
-        UserAttributes(email: newEmail),
-      );
-
-      if (response.user == null) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.auth('✅ MFA verificado y activado');
+      } else if (response.statusCode == 401 || response.statusCode == 400) {
         throw app_exceptions.AuthenticationException(
-          message: 'Error al actualizar email',
+          message: 'Código MFA inválido',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al verificar MFA: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en verifyMfaSetup', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Deshabilita MFA para el usuario actual
+  Future<void> disableMfa() async {
+    try {
+      if (!isAuthenticated()) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
         );
       }
 
-      AppLogger.auth('✅ Email actualizado (requiere confirmación)');
-      return response.user!;
-    });
+      AppLogger.auth('Deshabilitando MFA');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/mfa/disable'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.auth('✅ MFA deshabilitado');
+      } else if (response.statusCode == 401) {
+        _accessToken = null;
+        throw app_exceptions.AuthenticationException(
+          message: 'Sesión expirada',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al deshabilitar MFA: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en disableMfa', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
+  }
+
+  // ============================================
+  // Token Management & Session Methods
+  // ============================================
+
+  /// Renueva el access token usando el refresh token
+  ///
+  /// Returns: Map con nuevos access_token, refresh_token y user
+  /// Throws: AuthenticationException si el refresh token es inválido
+  Future<Map<String, dynamic>> refreshAccessToken() async {
+    try {
+      if (_refreshToken == null) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay refresh token disponible',
+        );
+      }
+
+      AppLogger.auth('Renovando access token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'refresh_token': _refreshToken,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _accessToken = data['access_token'] as String?;
+        _refreshToken = data['refresh_token'] as String?;
+        AppLogger.auth('✅ Token renovado exitosamente');
+        return data;
+      } else if (response.statusCode == 401) {
+        // Refresh token expirado o inválido
+        _accessToken = null;
+        _refreshToken = null;
+        throw app_exceptions.AuthenticationException(
+          message: 'Sesión expirada. Por favor inicie sesión nuevamente.',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al renovar token: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en refreshAccessToken', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Revoca todas las sesiones del usuario
+  ///
+  /// Útil cuando el usuario sospecha de acceso no autorizado
+  Future<void> revokeAllSessions() async {
+    try {
+      if (!isAuthenticated()) {
+        throw app_exceptions.AuthenticationException(
+          message: 'No hay usuario autenticado',
+        );
+      }
+
+      AppLogger.auth('Revocando todas las sesiones');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/revoke-all'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Limpiar tokens locales también
+        _accessToken = null;
+        _refreshToken = null;
+        _tempToken = null;
+        AppLogger.auth('✅ Todas las sesiones revocadas');
+      } else if (response.statusCode == 401) {
+        _accessToken = null;
+        throw app_exceptions.AuthenticationException(
+          message: 'Sesión expirada',
+        );
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al revocar sesiones: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.AuthenticationException) rethrow;
+      AppLogger.error('Error en revokeAllSessions', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 }

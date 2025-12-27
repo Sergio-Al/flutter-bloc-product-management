@@ -20,7 +20,7 @@ abstract class AuthLocalDatasource {
   /// Clear cached user data
   Future<void> clearCache();
 
-  /// Cache authentication token (optional)
+  /// Cache authentication token (access token)
   Future<void> cacheToken(String token);
 
   /// Get cached token
@@ -28,11 +28,24 @@ abstract class AuthLocalDatasource {
 
   /// Clear token
   Future<void> clearToken();
+
+  /// Cache refresh token for session renewal
+  Future<void> cacheRefreshToken(String refreshToken);
+
+  /// Get cached refresh token
+  Future<String?> getCachedRefreshToken();
+
+  /// Clear refresh token
+  Future<void> clearRefreshToken();
+
+  /// Clear all authentication data (tokens + user)
+  Future<void> clearAllAuthData();
 }
 
 class AuthLocalDatasourceImpl implements AuthLocalDatasource {
   static const String _cachedUserKey = 'CACHED_USER';
   static const String _cachedTokenKey = 'CACHED_TOKEN';
+  static const String _cachedRefreshTokenKey = 'CACHED_REFRESH_TOKEN';
 
   final SharedPreferences sharedPreferences;
 
@@ -107,6 +120,44 @@ class AuthLocalDatasourceImpl implements AuthLocalDatasource {
       await sharedPreferences.remove(_cachedTokenKey);
     } catch (e) {
       throw CacheException(message: 'Failed to clear token: $e');
+    }
+  }
+
+  @override
+  Future<void> cacheRefreshToken(String refreshToken) async {
+    try {
+      await sharedPreferences.setString(_cachedRefreshTokenKey, refreshToken);
+    } catch (e) {
+      throw CacheException(message: 'Failed to cache refresh token: $e');
+    }
+  }
+
+  @override
+  Future<String?> getCachedRefreshToken() async {
+    try {
+      return sharedPreferences.getString(_cachedRefreshTokenKey);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> clearRefreshToken() async {
+    try {
+      await sharedPreferences.remove(_cachedRefreshTokenKey);
+    } catch (e) {
+      throw CacheException(message: 'Failed to clear refresh token: $e');
+    }
+  }
+
+  @override
+  Future<void> clearAllAuthData() async {
+    try {
+      await sharedPreferences.remove(_cachedUserKey);
+      await sharedPreferences.remove(_cachedTokenKey);
+      await sharedPreferences.remove(_cachedRefreshTokenKey);
+    } catch (e) {
+      throw CacheException(message: 'Failed to clear auth data: $e');
     }
   }
 }

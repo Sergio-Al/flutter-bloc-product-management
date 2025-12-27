@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_management_system/core/utils/logger.dart';
 import '../../../core/di/injection_container.dart';
 import '../../../core/sync/sync_manager.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -11,7 +12,6 @@ import '../../blocs/movimiento/movimiento_bloc.dart';
 import '../../blocs/movimiento/movimiento_event.dart';
 import 'models/menu_item.dart';
 import 'utils/menu_config.dart';
-import 'utils/role_utils.dart';
 import 'widgets/home_app_bar.dart';
 import 'widgets/home_drawer.dart';
 import 'widgets/welcome_card.dart';
@@ -51,14 +51,19 @@ class _HomePageState extends State<HomePage> {
           return const _LoadingScaffold();
         }
 
-        final roleName = RoleUtils.getRoleNameFromId(state.user.rolId) ?? 'Usuario';
+        // Use rolNombre directly from user (from API response)
+        final roleName = state.user.rolNombre ?? 'Usuario';
         final allowedMenuItems = MenuConfig.getMenuItemsForRole(roleName);
+
+        AppLogger.info(
+          'Menu items for role $roleName: ${allowedMenuItems.map((e) => e.title).toList()}',
+        );
 
         return Scaffold(
           appBar: HomeAppBar(
             onNotificationsPressed: () => _showComingSoon('Notificaciones'),
             onSyncPressed: _handleSync,
-            onSettingsPressed: () => _showComingSoon('Configuración'),
+            onSettingsPressed: () => _showSettingsMFAPage(),
             onLogoutPressed: _showLogoutDialog,
           ),
           drawer: HomeDrawer(
@@ -97,10 +102,9 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: Theme.of(context)
-          .textTheme
-          .titleLarge
-          ?.copyWith(fontWeight: FontWeight.bold),
+      style: Theme.of(
+        context,
+      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 
@@ -128,6 +132,11 @@ class _HomePageState extends State<HomePage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _showSettingsMFAPage() {
+    if (!mounted) return;
+    Navigator.pushNamed(context, '/settings-mfa');
   }
 
   Future<void> _handleSync() async {
@@ -176,7 +185,7 @@ class _HomePageState extends State<HomePage> {
         (_) {
           // Recargar datos después de sincronización exitosa
           _loadInitialData();
-          
+
           messenger.showSnackBar(
             const SnackBar(
               content: Row(
@@ -236,8 +245,6 @@ class _LoadingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

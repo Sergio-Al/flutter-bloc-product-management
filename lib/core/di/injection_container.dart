@@ -9,6 +9,7 @@ import 'package:flutter_management_system/data/datasources/local/database/daos/p
 import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/rol_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/usuario_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
@@ -112,6 +113,8 @@ Future<void> setupDependencies() async {
       localDatasource: getIt(),
       networkInfo: getIt(),
       usuarioDao: getIt(),
+      rolDao: getIt(),
+      tiendaDao: getIt(),
     ),
   );
 
@@ -151,6 +154,10 @@ Future<void> setupDependencies() async {
     () => ResetPasswordUsecase(getIt<AuthRepository>()),
   );
 
+  getIt.registerLazySingleton<VerifyMfaLoginUseCase>(
+    () => VerifyMfaLoginUseCase(getIt<AuthRepository>()),
+  );
+
   // ============================================================================
   // BLoCs - Auth
   // ============================================================================
@@ -166,6 +173,7 @@ Future<void> setupDependencies() async {
       getCurrentUserUsecase: getIt<GetCurrentUserUsecase>(),
       updatePasswordUsecase: getIt<UpdatePasswordUsecase>(),
       resetPasswordUsecase: getIt<ResetPasswordUsecase>(),
+      verifyMfaLoginUseCase: getIt<VerifyMfaLoginUseCase>(),
     ),
   );
 
@@ -189,15 +197,20 @@ Future<void> setupDependencies() async {
   // ============================================================================
 
   getIt.registerLazySingleton<ProductoRemoteDataSource>(
-    () => ProductoRemoteDataSource(),
+    () =>
+        ProductoRemoteDataSource(authDataSource: getIt<AuthRemoteDataSource>()),
   );
 
   getIt.registerLazySingleton<AlmacenRemoteDataSource>(
-    () => AlmacenRemoteDataSource(),
+    () => AlmacenRemoteDataSource(
+      authDataSource: getIt<AuthRemoteDataSource>(),
+    ),
   );
 
   getIt.registerLazySingleton<TiendaRemoteDataSource>(
-    () => TiendaRemoteDataSource(),
+    () => TiendaRemoteDataSource(
+      authDataSource: getIt<AuthRemoteDataSource>(),
+    ),
   );
 
   getIt.registerLazySingleton<ProveedorRemoteDataSource>(
@@ -205,7 +218,9 @@ Future<void> setupDependencies() async {
   );
 
   getIt.registerLazySingleton<LoteRemoteDataSource>(
-    () => LoteRemoteDataSource(),
+    () => LoteRemoteDataSource(
+      authDataSource: getIt<AuthRemoteDataSource>(),
+    ),
   );
 
   getIt.registerLazySingleton<CategoriaRemoteDataSource>(
@@ -217,7 +232,9 @@ Future<void> setupDependencies() async {
   );
 
   getIt.registerLazySingleton<InventarioRemoteDataSource>(
-    () => InventarioRemoteDataSource(),
+    () => InventarioRemoteDataSource(
+      authDataSource: getIt<AuthRemoteDataSource>(),
+    ),
   );
 
   getIt.registerLazySingleton<MovimientoRemoteDataSource>(
@@ -252,6 +269,10 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<UsuarioDao>(
     () => getIt<AppDatabase>().usuarioDao,
+  );
+
+  getIt.registerLazySingleton<RolDao>(
+    () => getIt<AppDatabase>().rolDao,
   );
 
   getIt.registerLazySingleton<ProductoDao>(

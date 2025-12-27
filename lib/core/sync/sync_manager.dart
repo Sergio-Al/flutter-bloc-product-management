@@ -201,34 +201,41 @@ class SyncManager {
   /// Ejemplo de sincronización de producto
   Future<Either<Failure, void>> _syncProducto(SyncItem item) async {
     try {
-      // Convert camelCase data to snake_case for Supabase
+      // Convert camelCase data to snake_case for NestJS
       final remoteData = _convertToRemoteFormat(item.data);
+
+      AppLogger.sync('🔄 Syncing producto: ${item.entityId} - Operation: ${item.operation}');
+      AppLogger.sync('📦 Remote data to send: ${remoteData.keys.toList()}');
 
       switch (item.operation) {
         case SyncOperation.create:
           // Create on server
-          await _productoRemote.createProducto(remoteData);
-
-          // Note: Server returns producto with generated ID/timestamps
-          // Local already has the data, no need to update again
+          AppLogger.sync('📤 Creating producto on NestJS server...');
+          final result = await _productoRemote.createProducto(remoteData);
+          AppLogger.sync('✅ Producto created on server: ${result['id']}');
           break;
 
         case SyncOperation.update:
           // Update on server
+          AppLogger.sync('📤 Updating producto on NestJS server...');
           await _productoRemote.updateProducto(
             id: item.entityId,
             data: remoteData,
           );
+          AppLogger.sync('✅ Producto updated on server');
           break;
 
         case SyncOperation.delete:
           // Delete on server (soft delete)
+          AppLogger.sync('📤 Deleting producto on NestJS server...');
           await _productoRemote.deleteProducto(item.entityId);
+          AppLogger.sync('✅ Producto deleted on server');
           break;
       }
 
       return const Right(null);
     } catch (e) {
+      AppLogger.error('❌ Failed to sync producto: $e');
       return Left(SyncFailure(message: 'Failed to sync producto: $e'));
     }
   }
@@ -374,45 +381,45 @@ class SyncManager {
     }
   }
 
-  /// Convert camelCase JSON to snake_case for Supabase (Producto)
+  /// Convert local data to NestJS format (camelCase)
+  /// NestJS expects camelCase field names, not snake_case
   Map<String, dynamic> _convertToRemoteFormat(Map<String, dynamic> data) {
+    // NestJS expects camelCase - don't convert to snake_case!
+    // Local UUID syncs to server for offline-first architecture
     return {
-      'id': data['id'],
+      'id': data['id'], // Local UUID to sync with server
       'nombre': data['nombre'],
       'codigo': data['codigo'],
       'descripcion': data['descripcion'],
-      'categoria_id': data['categoriaId'],
-      'unidad_medida_id': data['unidadMedidaId'],
-      'proveedor_principal_id': data['proveedorPrincipalId'],
-      'precio_compra': data['precioCompra'],
-      'precio_venta': data['precioVenta'],
-      'peso_unitario_kg': data['pesoUnitarioKg'],
-      'volumen_unitario_m3': data['volumenUnitarioM3'],
-      'stock_minimo': data['stockMinimo'],
-      'stock_maximo': data['stockMaximo'],
+      'categoriaId': data['categoriaId'],
+      'unidadMedidaId': data['unidadMedidaId'],
+      'proveedorPrincipalId': data['proveedorPrincipalId'],
+      'precioCompra': data['precioCompra'],
+      'precioVenta': data['precioVenta'],
+      'pesoUnitarioKg': data['pesoUnitarioKg'],
+      'volumenUnitarioM3': data['volumenUnitarioM3'],
+      'stockMinimo': data['stockMinimo'],
+      'stockMaximo': data['stockMaximo'],
       'marca': data['marca'],
-      'grado_calidad': data['gradoCalidad'],
-      'norma_tecnica': data['normaTecnica'],
-      'requiere_almacen_cubierto': data['requiereAlmacenCubierto'],
-      'material_peligroso': data['materialPeligroso'],
-      'imagen_url': data['imagenUrl'],
-      'ficha_tecnica_url': data['fichaTecnicaUrl'],
+      'gradoCalidad': data['gradoCalidad'],
+      'normaTecnica': data['normaTecnica'],
+      'requiereAlmacenCubierto': data['requiereAlmacenCubierto'],
+      'materialPeligroso': data['materialPeligroso'],
+      'imagenUrl': data['imagenUrl'],
+      'fichaTecnicaUrl': data['fichaTecnicaUrl'],
       'activo': data['activo'],
-      'created_at': data['createdAt'],
-      'updated_at': data['updatedAt'],
-      'deleted_at': data['deletedAt'],
-      // ❌ Don't send sync_id to Supabase - it's local-only
-      // 'sync_id': data['syncId'],
-      'last_sync': data['lastSync'],
+      // Don't send these - server manages them:
+      // 'createdAt', 'updatedAt', 'deletedAt', 'syncId', 'lastSync'
     };
   }
 
-  /// Convert camelCase JSON to snake_case for Supabase (Almacen)
+  /// Convert local data to NestJS format for Almacen
   Map<String, dynamic> _convertAlmacenToRemoteFormat(
     Map<String, dynamic> data, {
     bool isUpdate = false,
   }) {
     final converted = <String, dynamic>{
+      'id': data['id'], // Local UUID to sync with server
       'nombre': data['nombre'],
       'codigo': data['codigo'],
       'ubicacion': data['ubicacion'],
@@ -546,23 +553,23 @@ class SyncManager {
     }
   }
 
-  /// Convert camelCase JSON to snake_case for Supabase (Inventario)
+  /// Convert local data to NestJS format for Inventario
+  /// NestJS expects camelCase for IDs, mixed case for other fields
   Map<String, dynamic> _convertInventarioToRemoteFormat(
     Map<String, dynamic> data, {
     bool isUpdate = false,
   }) {
     final converted = <String, dynamic>{
-      'id': data['id'],
-      'producto_id': data['productoId'],
-      'almacen_id': data['almacenId'],
-      'tienda_id': data['tiendaId'],
-      'lote_id': data['loteId'],
+      'id': data['id'], // Local UUID to sync with server
+      'productoId': data['productoId'],
+      'almacenId': data['almacenId'],
+      'tiendaId': data['tiendaId'],
+      'loteId': data['loteId'],
       'cantidad_actual': data['cantidadActual'],
       'cantidad_reservada': data['cantidadReservada'],
-      // 'cantidad_disponible': data['cantidadDisponible'],
+      'cantidad_disponible': data['cantidadDisponible'],
       'valor_total': data['valorTotal'],
       'ubicacion_fisica': data['ubicacionFisica'],
-      'ultima_actualizacion': data['ultimaActualizacion'],
     };
     return converted;
   }
@@ -646,12 +653,21 @@ class SyncManager {
       AppLogger.sync('Sincronizando ${remoteData.length} categorías...');
 
       for (final data in remoteData) {
+        // Handle categoria_padre which can be null or an object with 'id'
+        String? categoriaPadreId;
+        final categoriaPadre = data['categoria_padre'];
+        if (categoriaPadre is Map<String, dynamic>) {
+          categoriaPadreId = categoriaPadre['id'] as String?;
+        } else {
+          categoriaPadreId = data['categoria_padre_id'] as String?;
+        }
+
         final categoria = CategoriasCompanion(
           id: Value(data['id'] as String),
           nombre: Value(data['nombre'] as String),
           codigo: Value(data['codigo'] as String? ?? ''),
           descripcion: Value(data['descripcion'] as String?),
-          categoriaPadreId: Value(data['categoria_padre_id'] as String?),
+          categoriaPadreId: Value(categoriaPadreId),
           requiereLote: Value(data['requiere_lote'] as bool? ?? false),
           requiereCertificacion: Value(
             data['requiere_certificacion'] as bool? ?? false,
@@ -690,12 +706,21 @@ class SyncManager {
       );
 
       for (final data in remoteData) {
+        // Handle factor_conversion which can be a string or double from API
+        double factorConversion = 1.0;
+        final factorValue = data['factor_conversion'];
+        if (factorValue is String) {
+          factorConversion = double.tryParse(factorValue) ?? 1.0;
+        } else if (factorValue is num) {
+          factorConversion = factorValue.toDouble();
+        }
+
         final unidad = UnidadesMedidaCompanion(
           id: Value(data['id'] as String),
           nombre: Value(data['nombre'] as String),
           abreviatura: Value(data['abreviatura'] as String),
           tipo: Value(data['tipo'] as String),
-          factorConversion: Value(data['factor_conversion'] as double? ?? 1.0),
+          factorConversion: Value(factorConversion),
           createdAt: Value(
             data['created_at'] != null
                 ? DateTime.parse(data['created_at'] as String)
@@ -867,18 +892,41 @@ class SyncManager {
 
       for (final data in remoteData) {
         try {
-          // Validate foreign key references exist in local DB
-          final categoriaId = data['categoria_id'] as String?;
-          final unidadMedidaId = data['unidad_medida_id'] as String?;
-          final proveedorId = data['proveedor_principal_id'] as String?;
+          // NestJS returns nested objects for relations - extract IDs
+          // categoria can be nested object or just categoria_id
+          String? categoriaId;
+          final categoriaData = data['categoria'];
+          if (categoriaData is Map<String, dynamic>) {
+            categoriaId = categoriaData['id'] as String?;
+          } else {
+            categoriaId = data['categoria_id'] as String? ?? data['categoriaId'] as String?;
+          }
+
+          // unidadMedida can be nested object or just unidad_medida_id
+          String? unidadMedidaId;
+          final unidadData = data['unidadMedida'];
+          if (unidadData is Map<String, dynamic>) {
+            unidadMedidaId = unidadData['id'] as String?;
+          } else {
+            unidadMedidaId = data['unidad_medida_id'] as String? ?? data['unidadMedidaId'] as String?;
+          }
+
+          // proveedorPrincipal can be nested object or just proveedor_principal_id
+          String? proveedorId;
+          final proveedorData = data['proveedorPrincipal'];
+          if (proveedorData is Map<String, dynamic>) {
+            proveedorId = proveedorData['id'] as String?;
+          } else {
+            proveedorId = data['proveedor_principal_id'] as String? ?? data['proveedorPrincipalId'] as String?;
+          }
 
           // Check if required foreign keys exist
           bool canInsert = true;
-          
+
           if (categoriaId != null && categoriaId.isNotEmpty) {
-            final categoriaExists = await (_localDb.select(_localDb.categorias)
-                  ..where((tbl) => tbl.id.equals(categoriaId)))
-                .getSingleOrNull();
+            final categoriaExists = await (_localDb.select(
+              _localDb.categorias,
+            )..where((tbl) => tbl.id.equals(categoriaId!))).getSingleOrNull();
             if (categoriaExists == null) {
               AppLogger.warning(
                 'Skipping producto ${data['codigo']}: categoria $categoriaId not found',
@@ -887,10 +935,12 @@ class SyncManager {
             }
           }
 
-          if (canInsert && unidadMedidaId != null && unidadMedidaId.isNotEmpty) {
-            final unidadExists = await (_localDb.select(_localDb.unidadesMedida)
-                  ..where((tbl) => tbl.id.equals(unidadMedidaId)))
-                .getSingleOrNull();
+          if (canInsert &&
+              unidadMedidaId != null &&
+              unidadMedidaId.isNotEmpty) {
+            final unidadExists = await (_localDb.select(
+              _localDb.unidadesMedida,
+            )..where((tbl) => tbl.id.equals(unidadMedidaId!))).getSingleOrNull();
             if (unidadExists == null) {
               AppLogger.warning(
                 'Skipping producto ${data['codigo']}: unidad medida $unidadMedidaId not found',
@@ -900,9 +950,9 @@ class SyncManager {
           }
 
           if (canInsert && proveedorId != null && proveedorId.isNotEmpty) {
-            final proveedorExists = await (_localDb.select(_localDb.proveedores)
-                  ..where((tbl) => tbl.id.equals(proveedorId)))
-                .getSingleOrNull();
+            final proveedorExists = await (_localDb.select(
+              _localDb.proveedores,
+            )..where((tbl) => tbl.id.equals(proveedorId!))).getSingleOrNull();
             if (proveedorExists == null) {
               AppLogger.warning(
                 'Skipping producto ${data['codigo']}: proveedor $proveedorId not found',
@@ -916,6 +966,40 @@ class SyncManager {
             continue;
           }
 
+          // Parse prices - NestJS may return them as strings
+          double precioCompra = 0.0;
+          final precioCompraValue = data['precioCompra'] ?? data['precio_compra'];
+          if (precioCompraValue is String) {
+            precioCompra = double.tryParse(precioCompraValue) ?? 0.0;
+          } else if (precioCompraValue is num) {
+            precioCompra = precioCompraValue.toDouble();
+          }
+
+          double precioVenta = 0.0;
+          final precioVentaValue = data['precioVenta'] ?? data['precio_venta'];
+          if (precioVentaValue is String) {
+            precioVenta = double.tryParse(precioVentaValue) ?? 0.0;
+          } else if (precioVentaValue is num) {
+            precioVenta = precioVentaValue.toDouble();
+          }
+
+          // Parse optional double fields
+          double? pesoUnitarioKg;
+          final pesoValue = data['pesoUnitarioKg'] ?? data['peso_unitario_kg'];
+          if (pesoValue is String) {
+            pesoUnitarioKg = double.tryParse(pesoValue);
+          } else if (pesoValue is num) {
+            pesoUnitarioKg = pesoValue.toDouble();
+          }
+
+          double? volumenUnitarioM3;
+          final volumenValue = data['volumenUnitarioM3'] ?? data['volumen_unitario_m3'];
+          if (volumenValue is String) {
+            volumenUnitarioM3 = double.tryParse(volumenValue);
+          } else if (volumenValue is num) {
+            volumenUnitarioM3 = volumenValue.toDouble();
+          }
+
           final producto = ProductosCompanion(
             id: Value(data['id'] as String),
             nombre: Value(data['nombre'] as String),
@@ -924,57 +1008,63 @@ class SyncManager {
             categoriaId: Value(categoriaId ?? ''),
             unidadMedidaId: Value(unidadMedidaId ?? ''),
             proveedorPrincipalId: Value(proveedorId),
-            precioCompra: Value(data['precio_compra'] as double? ?? 0.0),
-            precioVenta: Value(data['precio_venta'] as double? ?? 0.0),
-            pesoUnitarioKg: Value(data['peso_unitario_kg'] as double?),
-            volumenUnitarioM3: Value(data['volumen_unitario_m3'] as double?),
-            stockMinimo: Value(data['stock_minimo'] as int? ?? 0),
-            stockMaximo: Value(data['stock_maximo'] as int? ?? 0),
+            precioCompra: Value(precioCompra),
+            precioVenta: Value(precioVenta),
+            pesoUnitarioKg: Value(pesoUnitarioKg),
+            volumenUnitarioM3: Value(volumenUnitarioM3),
+            stockMinimo: Value(data['stockMinimo'] as int? ?? data['stock_minimo'] as int? ?? 0),
+            stockMaximo: Value(data['stockMaximo'] as int? ?? data['stock_maximo'] as int? ?? 0),
             marca: Value(data['marca'] as String?),
-            gradoCalidad: Value(data['grado_calidad'] as String?),
-            normaTecnica: Value(data['norma_tecnica'] as String?),
+            gradoCalidad: Value(data['gradoCalidad'] as String? ?? data['grado_calidad'] as String?),
+            normaTecnica: Value(data['normaTecnica'] as String? ?? data['norma_tecnica'] as String?),
             requiereAlmacenCubierto: Value(
-              data['requiere_almacen_cubierto'] as bool? ?? false,
+              data['requiereAlmacenCubierto'] as bool? ?? data['requiere_almacen_cubierto'] as bool? ?? false,
             ),
             materialPeligroso: Value(
-              data['material_peligroso'] as bool? ?? false,
+              data['materialPeligroso'] as bool? ?? data['material_peligroso'] as bool? ?? false,
             ),
-            imagenUrl: Value(data['imagen_url'] as String?),
-            fichaTecnicaUrl: Value(data['ficha_tecnica_url'] as String?),
+            imagenUrl: Value(data['imagenUrl'] as String? ?? data['imagen_url'] as String?),
+            fichaTecnicaUrl: Value(data['fichaTecnicaUrl'] as String? ?? data['ficha_tecnica_url'] as String?),
             activo: Value(data['activo'] as bool? ?? true),
             createdAt: Value(
-              data['created_at'] != null
-                  ? DateTime.parse(data['created_at'] as String)
-                  : DateTime.now(),
+              data['createdAt'] != null
+                  ? DateTime.parse(data['createdAt'] as String)
+                  : data['created_at'] != null
+                      ? DateTime.parse(data['created_at'] as String)
+                      : DateTime.now(),
             ),
             updatedAt: Value(
-              data['updated_at'] != null
-                  ? DateTime.parse(data['updated_at'] as String)
-                  : DateTime.now(),
+              data['updatedAt'] != null
+                  ? DateTime.parse(data['updatedAt'] as String)
+                  : data['updated_at'] != null
+                      ? DateTime.parse(data['updated_at'] as String)
+                      : DateTime.now(),
             ),
             deletedAt: Value(
-              data['deleted_at'] != null
-                  ? DateTime.parse(data['deleted_at'] as String)
-                  : null,
+              data['deletedAt'] != null
+                  ? DateTime.parse(data['deletedAt'] as String)
+                  : data['deleted_at'] != null
+                      ? DateTime.parse(data['deleted_at'] as String)
+                      : null,
             ),
           );
 
           await _localDb
               .into(_localDb.productos)
               .insertOnConflictUpdate(producto);
-          
+
           syncedCount++;
         } catch (e) {
-          AppLogger.error(
-            'Error syncing producto ${data['codigo']}: $e',
-          );
+          AppLogger.error('Error syncing producto ${data['codigo']}: $e');
           skippedCount++;
         }
       }
 
       AppLogger.sync(
         '✅ Productos sincronizados: $syncedCount de ${remoteData.length}' +
-        (skippedCount > 0 ? ' ($skippedCount omitidos por referencias faltantes)' : ''),
+            (skippedCount > 0
+                ? ' ($skippedCount omitidos por referencias faltantes)'
+                : ''),
       );
     } catch (e) {
       AppLogger.error('Error syncing productos: $e');

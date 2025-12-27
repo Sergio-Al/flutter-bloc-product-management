@@ -9,9 +9,12 @@ class UsuarioModel extends Equatable {
   final String nombreCompleto;
   final String? telefono;
   final String? tiendaId;
+  final String? tiendaNombre; // Added for caching
   final String rolId;
+  final String? rolNombre; // Added for caching
   final String? authUserId;
   final bool activo;
+  final bool mfaEnabled; // Added for caching
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -24,9 +27,12 @@ class UsuarioModel extends Equatable {
     required this.nombreCompleto,
     this.telefono,
     this.tiendaId,
+    this.tiendaNombre,
     required this.rolId,
+    this.rolNombre,
     this.authUserId,
     required this.activo,
+    this.mfaEnabled = false,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -35,26 +41,59 @@ class UsuarioModel extends Equatable {
   });
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
-    return UsuarioModel(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      nombreCompleto: json['nombre_completo'] as String,
-      telefono: json['telefono'] as String?,
-      tiendaId: json['tienda_id'] as String?,
-      rolId: json['rol_id'] as String,
-      authUserId: json['auth_user_id'] as String?,
-      activo: json['activo'] as bool? ?? true,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      deletedAt: json['deleted_at'] != null
-          ? DateTime.parse(json['deleted_at'] as String)
-          : null,
-      syncId: json['sync_id'] as String?,
-      lastSync: json['last_sync'] != null
-          ? DateTime.parse(json['last_sync'] as String)
-          : null,
-    );
-  }
+      print('Parsing UsuarioModel from JSON: $json');
+      // Support two shapes:
+      // 1) { "user": { ... nested user fields ... }, ... }
+      // 2) flat { "id": "...", "tienda_id": "...", "rol_id": "...", ... }
+      final user = (json['user'] is Map<String, dynamic>) ? json['user'] as Map<String, dynamic> : json;
+  
+      String? tiendaId;
+      String? tiendaNombre;
+      final tienda = user['tienda'];
+      if (tienda is Map<String, dynamic>) {
+        tiendaId = tienda['id'] as String?;
+        tiendaNombre = tienda['nombre'] as String?;
+      } else {
+        tiendaId = user['tienda_id'] as String?;
+        tiendaNombre = user['tienda_nombre'] as String?; // Load from cache
+      }
+
+      String rolId = '';
+      String? rolNombre;
+      final rol = user['rol'];
+      if (rol is Map<String, dynamic>) {
+        rolId = rol['id'] as String? ?? '';
+        rolNombre = rol['nombre'] as String?;
+      } else {
+        rolId = user['rol_id'] as String? ?? '';
+        rolNombre = user['rol_nombre'] as String?; // Load from cache
+      }
+
+      return UsuarioModel(
+        id: user['id'] as String,
+        email: user['email'] as String,
+        nombreCompleto: user['nombre_completo'] as String? ?? user['nombre'] as String? ?? '',
+        telefono: user['telefono'] as String?,
+        tiendaId: tiendaId,
+        tiendaNombre: tiendaNombre,
+        rolId: rolId,
+        rolNombre: rolNombre,
+        authUserId: user['auth_user_id'] as String? ?? json['access_token'] as String?,
+        activo: (user['activo'] as bool?) ?? true,
+        mfaEnabled: (user['mfa_enabled'] as bool?) ?? (user['mfaEnabled'] as bool?) ?? false,
+        createdAt: user['created_at'] != null
+            ? DateTime.parse(user['created_at'] as String)
+            : DateTime.now(),
+        updatedAt: user['updated_at'] != null
+            ? DateTime.parse(user['updated_at'] as String)
+            : DateTime.now(),
+        deletedAt: user['deleted_at'] != null ? DateTime.parse(user['deleted_at'] as String) : null,
+        syncId: user['sync_id'] as String? ?? json['sync_id'] as String?,
+        lastSync: (user['last_sync'] != null)
+            ? DateTime.parse(user['last_sync'] as String)
+            : (json['last_sync'] != null ? DateTime.parse(json['last_sync'] as String) : null),
+      );
+    }
 
   Map<String, dynamic> toJson() {
     return {
@@ -63,9 +102,12 @@ class UsuarioModel extends Equatable {
       'nombre_completo': nombreCompleto,
       'telefono': telefono,
       'tienda_id': tiendaId,
+      'tienda_nombre': tiendaNombre, // Cache tienda name
       'rol_id': rolId,
+      'rol_nombre': rolNombre, // Cache rol name
       'auth_user_id': authUserId,
       'activo': activo,
+      'mfa_enabled': mfaEnabled,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
@@ -80,9 +122,12 @@ class UsuarioModel extends Equatable {
     String? nombreCompleto,
     String? telefono,
     String? tiendaId,
+    String? tiendaNombre,
     String? rolId,
+    String? rolNombre,
     String? authUserId,
     bool? activo,
+    bool? mfaEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -95,9 +140,12 @@ class UsuarioModel extends Equatable {
       nombreCompleto: nombreCompleto ?? this.nombreCompleto,
       telefono: telefono ?? this.telefono,
       tiendaId: tiendaId ?? this.tiendaId,
+      tiendaNombre: tiendaNombre ?? this.tiendaNombre,
       rolId: rolId ?? this.rolId,
+      rolNombre: rolNombre ?? this.rolNombre,
       authUserId: authUserId ?? this.authUserId,
       activo: activo ?? this.activo,
+      mfaEnabled: mfaEnabled ?? this.mfaEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -113,9 +161,12 @@ class UsuarioModel extends Equatable {
         nombreCompleto,
         telefono,
         tiendaId,
+        tiendaNombre,
         rolId,
+        rolNombre,
         authUserId,
         activo,
+        mfaEnabled,
         createdAt,
         updatedAt,
         deletedAt,
@@ -124,7 +175,7 @@ class UsuarioModel extends Equatable {
       ];
 
   @override
-  String toString() => 'UsuarioModel(id: $id, email: $email, nombreCompleto: $nombreCompleto)';
+  String toString() => 'UsuarioModel(id: $id, email: $email, nombreCompleto: $nombreCompleto, rolNombre: $rolNombre)';
 
   /// Convert Model to Entity (Domain layer)
   Usuario toEntity() {
@@ -134,9 +185,12 @@ class UsuarioModel extends Equatable {
       nombreCompleto: nombreCompleto,
       telefono: telefono,
       tiendaId: tiendaId,
+      tiendaNombre: tiendaNombre, // Now properly cached
       rolId: rolId,
+      rolNombre: rolNombre, // Now properly cached
       authUserId: authUserId,
       activo: activo,
+      mfaEnabled: mfaEnabled, // Now properly cached
       createdAt: createdAt,
       updatedAt: updatedAt,
       deletedAt: deletedAt,
@@ -151,9 +205,12 @@ class UsuarioModel extends Equatable {
       nombreCompleto: entity.nombreCompleto,
       telefono: entity.telefono,
       tiendaId: entity.tiendaId,
+      tiendaNombre: entity.tiendaNombre,
       rolId: entity.rolId ?? '',
+      rolNombre: entity.rolNombre,
       authUserId: entity.authUserId,
       activo: entity.activo,
+      mfaEnabled: entity.mfaEnabled,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

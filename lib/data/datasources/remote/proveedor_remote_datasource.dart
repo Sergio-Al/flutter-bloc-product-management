@@ -1,9 +1,18 @@
-import 'supabase_datasource.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../../core/config/env_config.dart';
+import '../../../core/errors/exceptions.dart' as app_exceptions;
 import '../../../core/utils/logger.dart';
 
-/// Datasource remoto para operaciones de proveedores con Supabase
-class ProveedorRemoteDataSource extends SupabaseDataSource {
-  static const String _tableName = 'proveedores';
+/// Datasource remoto para operaciones de proveedores con NestJS backend
+class ProveedorRemoteDataSource {
+  /// Base URL del API (configurable desde .env)
+  static String get baseUrl => EnvConfig.apiUrl;
+
+  /// Headers comunes para todas las peticiones
+  static Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+  };
 
   /// Obtiene todos los proveedores
   Future<List<Map<String, dynamic>>> getProveedores({
@@ -11,69 +20,135 @@ class ProveedorRemoteDataSource extends SupabaseDataSource {
     bool? soloActivos,
     String? tipoMaterial,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo proveedores');
+    try {
+      AppLogger.database('Obteniendo proveedores desde NestJS');
 
-      var query = SupabaseDataSource.client.from(_tableName).select('*');
-
-      if (soloActivos == true) {
-        query = query.isFilter('deleted_at', null);
-      }
-
+      // Build query parameters
+      final queryParams = <String, String>{};
       if (tipoMaterial != null) {
-        query = query.eq('tipo_material', tipoMaterial);
+        queryParams['tipo'] = tipoMaterial;
       }
 
-      final response = await query.order('razon_social', ascending: true);
+      final uri = soloActivos == true
+          ? Uri.parse('$baseUrl/proveedores/activos').replace(
+              queryParameters: queryParams.isNotEmpty ? queryParams : null,
+            )
+          : Uri.parse('$baseUrl/proveedores').replace(
+              queryParameters: queryParams.isNotEmpty ? queryParams : null,
+            );
 
-      AppLogger.database('✅ ${response.length} proveedores obtenidos');
-      return List<Map<String, dynamic>>.from(response);
-    });
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} proveedores obtenidos');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener proveedores: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo proveedores', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene un proveedor por ID
   Future<Map<String, dynamic>> getProveedorById(String id) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Obteniendo proveedor: $id');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('*')
-          .eq('id', id)
-          .single();
+      final response = await http
+          .get(Uri.parse('$baseUrl/proveedores/$id'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
 
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Proveedor obtenido: ${data['razon_social']}');
+        return data;
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al obtener proveedor: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo proveedor', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Busca proveedores por término
-  Future<List<Map<String, dynamic>>> searchProveedores(String searchTerm) async {
-    return SupabaseDataSource.executeQuery(() async {
+  Future<List<Map<String, dynamic>>> searchProveedores(
+    String searchTerm,
+  ) async {
+    try {
       AppLogger.database('Buscando proveedores: $searchTerm');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .select('*')
-          .or('razon_social.ilike.%$searchTerm%,nit.ilike.%$searchTerm%,nombre_contacto.ilike.%$searchTerm%');
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/proveedores?search=$searchTerm'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      return List<Map<String, dynamic>>.from(response);
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} proveedores encontrados');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al buscar proveedores: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error buscando proveedores', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Crea un nuevo proveedor
-  Future<Map<String, dynamic>> createProveedor(Map<String, dynamic> data) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Creando proveedor: ${data}');
+  Future<Map<String, dynamic>> createProveedor(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.database('Creando proveedor: ${data['razon_social']}');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .insert(data)
-          .select()
-          .single();
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/proveedores'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Proveedor creado: ${response['id']}');
-      return response;
-    });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final result = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Proveedor creado: ${result['id']}');
+        return result;
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al crear proveedor: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error creando proveedor', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Actualiza un proveedor
@@ -81,56 +156,90 @@ class ProveedorRemoteDataSource extends SupabaseDataSource {
     required String id,
     required Map<String, dynamic> data,
   }) async {
-    return SupabaseDataSource.executeQuery(() async {
+    try {
       AppLogger.database('Actualizando proveedor: $id');
 
-      final response = await SupabaseDataSource.client
-          .from(_tableName)
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/proveedores/$id'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.database('✅ Proveedor actualizado');
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body) as Map<String, dynamic>;
+        AppLogger.database('✅ Proveedor actualizado');
+        return result;
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al actualizar proveedor: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error actualizando proveedor', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Elimina un proveedor (soft delete)
   Future<void> deleteProveedor(String id) async {
-    await SupabaseDataSource.softDelete(_tableName, id);
-    AppLogger.database('✅ Proveedor eliminado: $id');
+    try {
+      AppLogger.database('Eliminando proveedor: $id');
+
+      final response = await http
+          .delete(Uri.parse('$baseUrl/proveedores/$id'), headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.database('✅ Proveedor eliminado: $id');
+      } else {
+        throw app_exceptions.ServerException(
+          message: 'Error al eliminar proveedor: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error eliminando proveedor', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 
   /// Obtiene proveedores por tipo de material
   Future<List<Map<String, dynamic>>> getProveedoresByTipoMaterial(
     String tipoMaterial,
   ) async {
-    return getProveedores(tipoMaterial: tipoMaterial, soloActivos: true);
-  }
+    try {
+      AppLogger.database('Obteniendo proveedores por tipo: $tipoMaterial');
 
-  /// Marca un proveedor como sincronizado
-  Future<void> markAsSynced(String id, DateTime syncTime) async {
-    return SupabaseDataSource.executeQuery(() async {
-      await SupabaseDataSource.client.from(_tableName).update({
-        'last_sync': syncTime.toIso8601String(),
-      }).eq('id', id);
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/proveedores/por-tipo?tipo=$tipoMaterial'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
-      AppLogger.sync('Proveedor marcado como sincronizado: $id');
-    });
-  }
-
-  /// Obtiene estadísticas de compras por proveedor
-  Future<Map<String, dynamic>> getEstadisticasProveedor(String proveedorId) async {
-    return SupabaseDataSource.executeQuery(() async {
-      AppLogger.database('Obteniendo estadísticas del proveedor: $proveedorId');
-
-      final response = await SupabaseDataSource.client
-          .rpc('get_estadisticas_proveedor', params: {
-        'p_proveedor_id': proveedorId,
-      });
-
-      return response;
-    });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        AppLogger.database('✅ ${data.length} proveedores obtenidos');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw app_exceptions.ServerException(
+          message:
+              'Error al obtener proveedores por tipo: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is app_exceptions.ServerException) rethrow;
+      AppLogger.error('Error obteniendo proveedores por tipo', e);
+      throw app_exceptions.ServerException(
+        message: 'Error de conexión: ${e.toString()}',
+      );
+    }
   }
 }

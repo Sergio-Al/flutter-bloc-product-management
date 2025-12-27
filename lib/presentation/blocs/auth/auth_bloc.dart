@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
+import '../../../domain/entities/usuario.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -15,6 +16,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GetCurrentUserUsecase getCurrentUserUsecase;
   final UpdatePasswordUsecase updatePasswordUsecase;
   final ResetPasswordUsecase resetPasswordUsecase;
+  final VerifyMfaLoginUseCase verifyMfaLoginUseCase;
 
   AuthBloc({
     required this.loginUseCase,
@@ -25,9 +27,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.getCurrentUserUsecase,
     required this.updatePasswordUsecase,
     required this.resetPasswordUsecase,
+    required this.verifyMfaLoginUseCase,
   }) : super(const AuthInitial()) {
     // Register event handlers
     on<AuthLoginRequested>(_onLoginRequested);
+    on<AuthMfaCodeSubmitted>(_onMfaCodeSubmitted);
     on<AuthRegisterRequested>(_onRegisterRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<AuthCheckStatusRequested>(_onCheckStatusRequested);
@@ -48,9 +52,88 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       password: event.password,
     );
 
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(AuthAuthenticated(user: user)),
+    result.fold((failure) => emit(AuthError(message: failure.message)), (
+      response,
+    ) {
+      // Check if MFA is required
+      if (response['requires_mfa'] == true) {
+        emit(AuthMfaRequired(tempToken: response['temp_token'] as String));
+      } else {
+        // Login successful - convert user data to Usuario entity
+        final userData = response['user'] as Map<String, dynamic>;
+        final usuario = _mapToUsuario(userData);
+        emit(AuthAuthenticated(user: usuario));
+      }
+    });
+  }
+
+  /// Handle MFA code verification
+  Future<void> _onMfaCodeSubmitted(
+    AuthMfaCodeSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await verifyMfaLoginUseCase(token: event.code);
+
+    result.fold((failure) => emit(AuthError(message: failure.message)), (
+      response,
+    ) {
+      // MFA verification successful - convert user data to Usuario entity
+      final userData = response['user'] as Map<String, dynamic>;
+      final usuario = _mapToUsuario(userData);
+      emit(AuthAuthenticated(user: usuario));
+    });
+  }
+
+  /// Helper to map API response to Usuario entity
+  Usuario _mapToUsuario(Map<String, dynamic> userData) {
+    // Extract tienda info (can be nested object or just ID)
+    String? tiendaId;
+    String? tiendaNombre;
+    final tienda = userData['tienda'];
+    if (tienda is Map<String, dynamic>) {
+      tiendaId = tienda['id'] as String?;
+      tiendaNombre = tienda['nombre'] as String?;
+    } else {
+      tiendaId =
+          userData['tienda_id'] as String? ?? userData['tiendaId'] as String?;
+    }
+
+    // Extract rol info (can be nested object or just ID)
+    String? rolId;
+    String? rolNombre;
+    final rol = userData['rol'];
+    if (rol is Map<String, dynamic>) {
+      rolId = rol['id'] as String?;
+      rolNombre = rol['nombre'] as String?;
+    } else {
+      rolId = userData['rol_id'] as String? ?? userData['rolId'] as String?;
+    }
+
+    return Usuario(
+      id: userData['id'] ?? '',
+      authUserId: userData['id'] ?? '',
+      email: userData['email'] ?? '',
+      nombreCompleto:
+          userData['nombre_completo'] ?? userData['nombreCompleto'] ?? '',
+      telefono: userData['telefono'] ?? '',
+      tiendaId: tiendaId,
+      tiendaNombre: tiendaNombre,
+      rolId: rolId,
+      rolNombre: rolNombre,
+      activo: userData['activo'] ?? true,
+      mfaEnabled: userData['mfa_enabled'] ?? userData['mfaEnabled'] ?? false,
+      createdAt:
+          DateTime.tryParse(
+            userData['created_at'] ?? userData['createdAt'] ?? '',
+          ) ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(
+            userData['updated_at'] ?? userData['updatedAt'] ?? '',
+          ) ??
+          DateTime.now(),
     );
   }
 
