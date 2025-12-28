@@ -112,17 +112,25 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
+      // Get default tienda (TC-001) and rol (Vendedor) from local database
+      final defaultTienda = await tiendaDao.getTiendaByCodigo('TC-001');
+      final defaultRol = await rolDao.getRolByNombre('Vendedor');
+      
+      if (defaultTienda == null) {
+        return Left(ServerFailure(message: 'No se encontró la tienda por defecto (TC-001)'));
+      }
+      if (defaultRol == null) {
+        return Left(ServerFailure(message: 'No se encontró el rol por defecto (Vendedor)'));
+      }
+      
       // Register with NestJS backend
-      // Note: NestJS backend requires tiendaId and rolId
-      // You'll need to add these parameters to the register method signature
-      // For now, using default/placeholder values
       final response = await remoteDatasource.register(
         email: email,
         password: password,
         nombreCompleto: nombreCompleto,
         telefono: telefono ?? '',
-        tiendaId: '2a1b9c90-9d42-46d3-8dc7-b347ba306c5b', // TODO: Pass actual tiendaId from UI
-        rolId: '2763e85c-5013-44dd-93ca-3154243fe738', // TODO: Pass actual rolId from UI
+        tiendaId: defaultTienda.id,
+        rolId: defaultRol.id,
       );
 
       // Wait a moment for backend processing

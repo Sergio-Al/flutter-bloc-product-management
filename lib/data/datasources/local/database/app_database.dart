@@ -38,6 +38,7 @@ import '../../remote/unidad_medida_remote_datasource.dart';
 import '../../remote/proveedor_remote_datasource.dart';
 import '../../remote/tienda_remote_datasource.dart';
 import '../../remote/almacen_remote_datasource.dart';
+import '../../remote/auth_remote_datasource.dart';
 
 // Importar logger
 import '../../../../core/utils/logger.dart';
@@ -189,9 +190,6 @@ class AppDatabase extends _$AppDatabase {
     try {
       await _syncDefaultsFromRemote();
       AppLogger.database('✅ Initial data synced from NestJS successfully');
-      
-      // Still need to insert roles locally (they're not in NestJS)
-      await _seedRoles();
       return;
     } catch (e) {
       AppLogger.warning('⚠️ Could not fetch from NestJS, using local defaults: $e');
@@ -504,6 +502,35 @@ ON CONFLICT (codigo) DO NOTHING;--*/
     final proveedorRemote = ProveedorRemoteDataSource();
     final tiendaRemote = TiendaRemoteDataSource();
     final almacenRemote = AlmacenRemoteDataSource();
+    final authRemote = AuthRemoteDataSource();
+
+    // Fetch roles from NestJS (must be done first as other entities may reference them)
+    try {
+      final remoteRoles = await authRemote.getRoles();
+      AppLogger.database(
+        '📥 Fetched ${remoteRoles.length} roles from NestJS',
+      );
+
+      for (final rolMap in remoteRoles) {
+        await into(roles).insert(
+          RolesCompanion.insert(
+            id: rolMap['id'] as String,
+            nombre: rolMap['nombre'] as String,
+            descripcion: Value(rolMap['descripcion'] as String?),
+            permisos: '{}', // NestJS doesn't return permisos, use empty JSON
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+
+      AppLogger.database(
+        '✅ ${remoteRoles.length} roles synced from NestJS',
+      );
+    } catch (e) {
+      AppLogger.error('Error fetching roles from NestJS', e);
+      // Fall back to local roles if remote fetch fails
+      await _seedRoles();
+    }
 
     // Fetch categorías from NestJS
     try {
