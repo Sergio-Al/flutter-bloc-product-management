@@ -11,6 +11,7 @@ enum SyncEntityType {
   proveedor,
   lote,
   categoria,
+  usuario,
 }
 
 class SyncItem {

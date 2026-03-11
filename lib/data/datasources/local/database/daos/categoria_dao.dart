@@ -16,6 +16,13 @@ class CategoriaDao extends DatabaseAccessor<AppDatabase> with _$CategoriaDaoMixi
         .get();
   }
 
+  // Obtener todas las categorías (incluyendo inactivas)
+  Future<List<CategoriaTable>> getAllCategoriasIncluyendoInactivas() {
+    return (select(categorias)
+          ..orderBy([(t) => OrderingTerm.asc(t.nombre)]))
+        .get();
+  }
+
   // Obtener categorías principales (sin padre)
   Future<List<CategoriaTable>> getCategoriasPrincipales() {
     return (select(categorias)
