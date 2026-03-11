@@ -9,6 +9,7 @@ import 'package:flutter_management_system/data/datasources/local/database/daos/p
 import 'package:flutter_management_system/data/datasources/local/database/daos/proveedor_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/tienda_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/lote_dao.dart';
+import 'package:flutter_management_system/data/datasources/local/database/daos/categoria_dao.dart';
 import 'package:flutter_management_system/data/datasources/local/database/daos/usuario_dao.dart';
 import 'package:flutter_management_system/data/datasources/remote/almacen_remote_datasource.dart';
 import 'package:flutter_management_system/data/datasources/remote/inventario_remote_datasource.dart';
@@ -26,6 +27,8 @@ import 'package:flutter_management_system/data/repositories/producto_repository_
 import 'package:flutter_management_system/data/repositories/proveedor_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/tienda_repository_impl.dart';
 import 'package:flutter_management_system/data/repositories/lote_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/categoria_repository_impl.dart';
+import 'package:flutter_management_system/data/repositories/usuario_repository_impl.dart';
 import 'package:flutter_management_system/domain/repositories/almacen_repository.dart';
 import 'package:flutter_management_system/domain/repositories/inventario_repository.dart';
 import 'package:flutter_management_system/domain/repositories/movimiento_repository.dart';
@@ -33,6 +36,8 @@ import 'package:flutter_management_system/domain/repositories/producto_repositor
 import 'package:flutter_management_system/domain/repositories/proveedor_repository.dart';
 import 'package:flutter_management_system/domain/repositories/tienda_repository.dart';
 import 'package:flutter_management_system/domain/repositories/lote_repository.dart';
+import 'package:flutter_management_system/domain/repositories/categoria_repository.dart';
+import 'package:flutter_management_system/domain/repositories/usuario_repository.dart';
 import 'package:flutter_management_system/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/inventarios/inventario_usecases.dart';
 import 'package:flutter_management_system/domain/usecases/movimientos/movimiento_usecases.dart';
@@ -1006,6 +1011,39 @@ Future<void> setupDependencies() async {
       updateMovimiento: getIt<UpdateMovimientoUsecase>(),
       completarMovimiento: getIt<CompletarMovimientoUsecase>(),
       cancelarMovimiento: getIt<CancelarMovimientoUsecase>(),
+    ),
+  );
+
+  // ============================================================================
+  // Data sources - Categorias (Local)
+  // ============================================================================
+
+  getIt.registerLazySingleton<CategoriaDao>(
+    () => getIt<AppDatabase>().categoriaDao,
+  );
+
+  // ============================================================================
+  // Repositories - Categorias
+  // ============================================================================
+
+  getIt.registerLazySingleton<CategoriaRepository>(
+    () => CategoriaRepositoryImpl(
+      remoteDataSource: getIt<CategoriaRemoteDataSource>(),
+      categoriaDao: getIt<CategoriaDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
+    ),
+  );
+
+  // ============================================================================
+  // Repositories - Usuarios
+  // ============================================================================
+
+  getIt.registerLazySingleton<UsuarioRepository>(
+    () => UsuarioRepositoryImpl(
+      usuarioDao: getIt<UsuarioDao>(),
+      networkInfo: getIt<NetworkInfo>(),
+      syncManager: getIt<SyncManager>(),
     ),
   );
 }

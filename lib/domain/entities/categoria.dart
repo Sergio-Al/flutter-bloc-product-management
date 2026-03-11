@@ -50,6 +50,38 @@ class Categoria extends Equatable {
         updatedAt,
       ];
 
+  /// Convert Categoria to JSON (camelCase keys for local sync queue)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre': nombre,
+      'codigo': codigo,
+      'descripcion': descripcion,
+      'categoriaPadreId': categoriaPadreId,
+      'requiereLote': requiereLote,
+      'requiereCertificacion': requiereCertificacion,
+      'activo': activo,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  /// Create Categoria from JSON (camelCase keys)
+  factory Categoria.fromJson(Map<String, dynamic> json) {
+    return Categoria(
+      id: json['id'] as String,
+      nombre: json['nombre'] as String,
+      codigo: json['codigo'] as String,
+      descripcion: json['descripcion'] as String?,
+      categoriaPadreId: json['categoriaPadreId'] as String?,
+      requiereLote: json['requiereLote'] as bool? ?? false,
+      requiereCertificacion: json['requiereCertificacion'] as bool? ?? false,
+      activo: json['activo'] as bool? ?? true,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
   @override
   String toString() {
     return 'Categoria(id: $id, nombre: $nombre, codigo: $codigo, activo: $activo)';
